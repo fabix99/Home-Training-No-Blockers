@@ -1,0 +1,11 @@
+# No Blockers branding (matches volleyball_analytics_v2)
+[theme]
+primaryColor = "#050d76"
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#2C3E50"
+font = "sans serif"
+
+[server]
+headless = false
+enableStaticServing = true

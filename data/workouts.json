@@ -1,0 +1,52 @@
+{
+  "workout_1": {
+    "title": "Power & recovery (Tue)",
+    "description": "Recovery day after Monday training.\n\n5 min warm-up: Dynamic stretches, arm circles.\n\nJump prep: 3\u00d78 jump squats (focus on landing soft).\n\nLegs: 3\u00d710 single-leg RDL each leg, 3\u00d715 calf raises.\n\nCore: 3\u00d730s side plank each side, 3\u00d710 bird dogs.\n\nCool-down: 5 min stretch (hamstrings, hip flexors, shoulders)."
+  },
+  "workout_2": {
+    "title": "Upper body & core (Wed)",
+    "description": "Prep for Thursday training.\n\n5 min warm-up: Jog, arm circles, band pull-aparts.\n\nPush-ups: 3\u00d78\u201312 (or pike push-ups for overhead strength).\n\nShoulder stability: 3\u00d710 Y\u2013T\u2013W raises (light weight or band).\n\nCore: 3\u00d720 Russian twists, 3\u00d730s hollow hold.\n\nCool-down: 5 min stretch (chest, shoulders, lats)."
+  },
+  "workout_3": {
+    "title": "Weekend \u2013 full body & mobility",
+    "description": "Longer session when you have more time.\n\n10 min warm-up: Jog, dynamic stretches, arm circles, leg swings.\n\nFull body: 3\u00d710 squats, 3\u00d78 push-ups, 3\u00d710 single-leg RDL each leg.\n\nMobility: 2\u00d710 hip circles each direction, 2\u00d710 shoulder dislocates (band or towel).\n\nCore: 3\u00d730s plank, 3\u00d710 bird dogs.\n\nCool-down: 5\u201310 min stretch (full body)."
+  },
+  "2026-02-02": {
+    "workout_1": {
+      "title": "Test workout",
+      "description": "ygweygfoyewgfoyrgbfo\n"
+    },
+    "workout_2": {
+      "title": "Upper body & core (Wed)",
+      "description": "5 min warm-up: Jog, arm circles, band pull-aparts.\n\nPush-ups: 3\u00d78\u201312 (or pike push-ups for overhead strength).\n\nShoulder stability: 3\u00d710 Y\u2013T\u2013W raises (light weight or band).\n\nCore: 3\u00d720 Russian twists, 3\u00d730s hollow hold.\n\nCool-down: 5 min stretch (chest, shoulders, lats)."
+    },
+    "workout_3": {
+      "title": "Weekend \u2013 full body & mobility",
+      "description": "10 min warm-up: Jog, dynamic stretches, arm circles, leg swings.\n\nFull body: 3\u00d710 squats, 3\u00d78 push-ups, 3\u00d710 single-leg RDL each leg.\n\nMobility: 2\u00d710 hip circles each direction, 2\u00d710 shoulder dislocates (band or towel).\n\nCore: 3\u00d730s plank, 3\u00d710 bird dogs.\n\nCool-down: 5\u201310 min stretch (full body)."
+    }
+  },
+  "2026-02-03": {
+    "title": "Power & recovery (Tue)",
+    "description": "Recovery day after Monday training.\n\n5 min warm-up: Dynamic stretches, arm circles.\n\nJump prep: 3\u00d78 jump squats (focus on landing soft).\n\nLegs: 3\u00d710 single-leg RDL each leg, 3\u00d715 calf raises.\n\nCore: 3\u00d730s side plank each side, 3\u00d710 bird dogs.\n\nCool-down: 5 min stretch (hamstrings, hip flexors, shoulders)."
+  },
+  "2026-02-04": {
+    "title": "Upper body & core (Wed)",
+    "description": "Prep for Thursday training.\n\n5 min warm-up: Jog, arm circles, band pull-aparts.\n\nPush-ups: 3\u00d78\u201312 (or pike push-ups for overhead strength).\n\nShoulder stability: 3\u00d710 Y\u2013T\u2013W raises (light weight or band).\n\nCore: 3\u00d720 Russian twists, 3\u00d730s hollow hold.\n\nCool-down: 5 min stretch (chest, shoulders, lats)."
+  },
+  "2026-02-07": {
+    "title": "Weekend \u2013 full body & mobility",
+    "description": "Longer session when you have more time.\n\n10 min warm-up: Jog, dynamic stretches, arm circles, leg swings.\n\nFull body: 3\u00d710 squats, 3\u00d78 push-ups, 3\u00d710 single-leg RDL each leg.\n\nMobility: 2\u00d710 hip circles each direction, 2\u00d710 shoulder dislocates (band or towel).\n\nCore: 3\u00d730s plank, 3\u00d710 bird dogs.\n\nCool-down: 5\u201310 min stretch (full body)."
+  },
+  "2025-01-27": {
+    "title": "Light core & mobility",
+    "description": "5 min warm-up (jog on the spot, arm circles).\n\nCore: 3\u00d710 crunches, 3\u00d730s plank.\n\nMobility: 2\u00d710 leg swings each leg, 2\u00d710 hip circles each direction.\n\nCool-down: 2 min stretch (quads, hamstrings, shoulders)."
+  },
+  "2025-01-28": {
+    "title": "Legs & balance",
+    "description": "5 min warm-up.\n\nSquats: 3\u00d712 bodyweight squats.\n\nBalance: 3\u00d730s single-leg stand each leg.\n\nCalf raises: 3\u00d715.\n\nCool-down: 2 min stretch."
+  },
+  "2025-01-29": {
+    "title": "Upper body & shoulders",
+    "description": "5 min warm-up.\n\nPush-ups: 3\u00d78 (or knee push-ups).\n\nShoulder mobility: arm circles, band or towel stretches.\n\nCool-down: 2 min stretch."
+  }
+}
