@@ -9,6 +9,8 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
+**Mobile-friendly version:** Run `streamlit run mobile-app.py` for a layout tuned for small screens (sidebar collapsed by default, week switcher in main area, touch-friendly calendar). The "Deploy" label in the top bar is Streamlit’s default when running locally and is not shown when deployed to Streamlit Cloud.
+
 - **Without GitHub:** The app reads and writes `data/players.json`, `data/workouts.json`, and `data/completions.json` from the `data/` folder. Edit those files to add players and workouts.
 - **With GitHub:** Create `.streamlit/secrets.toml` (see below) so the app reads/writes the same files in the GitHub repo.
 
