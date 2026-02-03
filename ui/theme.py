@@ -279,6 +279,19 @@ section.main div[data-testid="column"]:has(.calendar-row) .calendar-row {
     color: #06A77D !important;
 }
 
+/* Calendar checkbox rows (fragment): compact checkboxes, no full-page refresh */
+.calendar-checkbox-rows [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] {
+    min-height: 52px !important;
+    align-items: center !important;
+}
+.calendar-checkbox-rows [data-testid="stCheckbox"] {
+    justify-content: center !important;
+}
+.calendar-checkbox-rows [data-testid="stCheckbox"] label {
+    min-height: 32px !important;
+    padding: 0.5rem 0.25rem !important;
+}
+
 .player-name {
     font-family: 'Poppins', sans-serif;
     font-weight: 700;

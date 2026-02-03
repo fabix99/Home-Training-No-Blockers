@@ -12,8 +12,6 @@ import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Union
-from urllib.parse import quote
-
 import streamlit as st
 
 # -----------------------------------------------------------------------------
@@ -221,8 +219,47 @@ def _day_header_subtitle(d: date) -> str | None:
     return None
 
 
+def _make_toggle_callback(player: str, day: date):
+    """Return a no-arg callback that toggles completion for (player, day) and saves. Used in fragment so only calendar reruns."""
+    def _():
+        set_completed(day, player, not completed(day, player))
+        if save_completions(st.session_state.completions):
+            st.session_state.save_feedback_until = time.time() + 2.0
+            st.session_state.save_error = None
+        else:
+            st.session_state.save_error = "Could not save. Check connection or GitHub token."
+    return _
+
+
+@st.fragment
+def _render_calendar_rows(week_start: date, today: date):
+    """Data rows only – fragment so toggling a checkbox only reruns this block, not the whole page."""
+    players = st.session_state.players
+    if not players:
+        return
+    st.markdown('<div class="calendar-checkbox-rows">', unsafe_allow_html=True)
+    days = get_week_days(week_start)
+    for player in players:
+        row_cols = st.columns([2, 7])
+        with row_cols[0]:
+            st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
+        with row_cols[1]:
+            day_cols = st.columns(7)
+            for i, d in enumerate(days):
+                with day_cols[i]:
+                    is_done = completed(d, player)
+                    st.checkbox(
+                        "Toggle",
+                        value=is_done,
+                        key=f"cell_{player}_{d.isoformat()}",
+                        on_change=_make_toggle_callback(player, d),
+                        label_visibility="collapsed",
+                    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
 def render_week_calendar(week_start: date, today: date):
-    """Two columns per row: name | week (7 cells in one container). Same structure for header and data rows."""
+    """Two columns per row: name | week (7 cells). Header outside fragment; rows in fragment so toggles don't refresh whole page."""
     players = st.session_state.players
     if not players:
         render_empty_players()
@@ -248,29 +285,8 @@ def render_week_calendar(week_start: date, today: date):
             )
         st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
 
-    # Data rows: 2 columns – name | 7 cells in one container (.calendar-row)
-    for player in players:
-        row_cols = st.columns([2, 7])
-        with row_cols[0]:
-            st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
-        with row_cols[1]:
-            cells = []
-            for d in days:
-                date_key = d.isoformat()
-                is_today = d == today
-                is_done = completed(d, player)
-                cell_cls = "cell" + (" today" if is_today else "") + (" completed" if is_done else "")
-                toggle_param = quote(f"{player}|{date_key}")
-                check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
-                aria_checked = "true" if is_done else "false"
-                cells.append(
-                    f'<div class="calendar-cell">'
-                    f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
-                    f'<a href="?toggle={toggle_param}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
-                    f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
-                    f'</div>'
-                )
-            st.markdown(f'<div class="calendar-row">{"".join(cells)}</div>', unsafe_allow_html=True)
+    # Data rows in a fragment – only this block reruns when a checkbox is toggled
+    _render_calendar_rows(week_start, today)
 
 
 # -----------------------------------------------------------------------------
