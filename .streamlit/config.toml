@@ -7,5 +7,5 @@ textColor = "#2C3E50"
 font = "sans serif"
 
 [server]
-headless = false
+headless = true
 enableStaticServing = true
