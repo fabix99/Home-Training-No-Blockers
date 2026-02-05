@@ -229,29 +229,43 @@ def _day_header_subtitle(d: date) -> str | None:
     return None
 
 
-def render_week_calendar(week_start: date, today: date):
-    """Two columns per row: name | week (7 cells). Player dropdown selects which player's row to show."""
+def _ensure_selected_player():
+    """Initialize or validate selected player in session state."""
+    players = st.session_state.players or []
+    if not players:
+        return
+    if "selected_player" not in st.session_state or st.session_state.selected_player not in players:
+        st.session_state.selected_player = players[0]
+
+
+def render_player_selector():
+    """Player dropdown – call first for user-friendly flow."""
     players = st.session_state.players
     if not players:
         render_empty_players()
         return
+    _ensure_selected_player()
+    st.session_state.selected_player = st.selectbox(
+        "Select your name",
+        players,
+        index=players.index(st.session_state.selected_player),
+        key="calendar_selected_player",
+    )
 
-    # Initialize or validate selected player
-    if "selected_player" not in st.session_state or st.session_state.selected_player not in players:
-        st.session_state.selected_player = players[0]
 
+def render_calendar_grid(week_start: date, today: date):
+    """Day headers + selected player's row (7 cells). Call after render_player_selector and week switcher."""
+    players = st.session_state.players
+    if not players:
+        return
+    _ensure_selected_player()
+    player = st.session_state.selected_player
     days = get_week_days(week_start)
 
-    # Header row: dropdown (select player) | 7 day headers
+    # Header row: selected player name | 7 day headers
     header_cols = st.columns([2, 7])
     with header_cols[0]:
-        st.session_state.selected_player = st.selectbox(
-            "Select your name",
-            players,
-            index=players.index(st.session_state.selected_player),
-            key="calendar_selected_player",
-            label_visibility="collapsed",
-        )
+        st.markdown(f'<div class="calendar-header-cell calendar-header-player">{player}</div>', unsafe_allow_html=True)
     with header_cols[1]:
         day_headers = []
         for d in days:
@@ -267,7 +281,6 @@ def render_week_calendar(week_start: date, today: date):
         st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
 
     # Single data row: selected player only
-    player = st.session_state.selected_player
     row_cols = st.columns([2, 7])
     with row_cols[0]:
         st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
@@ -423,11 +436,20 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Week label
+    # 1. Player selector (first for user-friendly flow)
+    render_player_selector()
+    players = st.session_state.players
+    if not players:
+        return
+
+    # 2. Week label
     week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
     st.markdown(f"**{week_label}**")
 
-    # Workout 1, 2, 3 – content per week (workout_1, workout_2, workout_3 for this week only)
+    # 3. Calendar (selected player's row)
+    render_calendar_grid(week_start, today)
+
+    # 4. Workout 1, 2, 3 – content per week (workout_1, workout_2, workout_3 for this week only)
     week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
     w1, w2, w3 = st.columns(3)
     for col, (btn_label, workout_key) in enumerate(
@@ -442,6 +464,7 @@ def main():
                 else:
                     st.info("No workout defined.")
 
+    # 5. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
 
     st.markdown("---")
@@ -485,8 +508,6 @@ def main():
                 st.rerun()
             else:
                 st.session_state.save_error = "Still could not save."
-
-    render_week_calendar(week_start, today)
 
 
 if __name__ == "__main__":

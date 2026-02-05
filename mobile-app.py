@@ -20,7 +20,8 @@ from app import (
     get_useful_info_doc_url,
     get_workouts_for_week,
     init_session_state,
-    render_week_calendar,
+    render_calendar_grid,
+    render_player_selector,
     save_completions,
     save_workouts,
 )
@@ -199,7 +200,12 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Week switcher in main area (mobile: change week without opening sidebar)
+    # 1. Player selector (first for user-friendly flow)
+    render_player_selector()
+    if not st.session_state.players:
+        return
+
+    # 2. Week switcher in main area (mobile: change week without opening sidebar)
     week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
     prev_week = week_start - timedelta(days=7)
     next_week = week_start + timedelta(days=7)
@@ -214,6 +220,11 @@ def main():
             st.rerun()
     st.markdown(f"**{week_label}**")
 
+    # 3. Calendar (selected player's row)
+    st.caption("Swipe for all 7 days")
+    render_calendar_grid(week_start, today)
+
+    # 4. Workout 1, 2, 3
     week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
     w1, w2, w3 = st.columns(3)
     for col, (btn_label, workout_key) in enumerate(
@@ -228,6 +239,7 @@ def main():
                 else:
                     st.info("No workout defined.")
 
+    # 5. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
 
     st.markdown("---")
@@ -269,9 +281,6 @@ def main():
                 st.rerun()
             else:
                 st.session_state.save_error = "Still could not save."
-
-    st.caption("Swipe for all 7 days")
-    render_week_calendar(week_start, today)
 
 
 if __name__ == "__main__":
