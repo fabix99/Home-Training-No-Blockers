@@ -61,6 +61,15 @@ MOBILE_CSS = """
         position: relative !important;
         box-shadow: inset -16px 0 12px -8px rgba(250,250,250,0.95) !important;
     }
+    /* Force 7 checkbox columns to stay in one horizontal row (no wrapping) */
+    section.main div[data-testid="column"]:has(.calendar-row) [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+        min-width: 320px !important;
+    }
+    section.main div[data-testid="column"]:has(.calendar-row) [data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+        flex: 0 0 auto !important;
+        min-width: 44px !important;
+    }
     /* Touch targets >= 44px for calendar checkbox buttons */
     section.main div[data-testid="column"]:has(.calendar-row) > div > div[data-testid="column"],
     section.main div[data-testid="column"]:has(.calendar-row) [data-testid="column"] {
