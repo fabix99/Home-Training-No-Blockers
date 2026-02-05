@@ -228,7 +228,6 @@ def main():
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
 
     # 6. Prev / Next week (at bottom)
-    week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
     prev_week = week_start - timedelta(days=7)
     next_week = week_start + timedelta(days=7)
     sw_col1, sw_col2 = st.columns(2)
@@ -240,7 +239,6 @@ def main():
         if st.button("Next week →", key="mobile_next_week", use_container_width=True):
             st.session_state.week_start = next_week
             st.rerun()
-    st.markdown(f"**{week_label}**")
 
     st.markdown("---")
 
