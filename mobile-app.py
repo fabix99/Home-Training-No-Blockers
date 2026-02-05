@@ -17,6 +17,7 @@ from app import (
     apply_dashboard_theme,
     count_week_completions,
     get_star_of_the_week,
+    get_useful_info_doc_url,
     get_workouts_for_week,
     init_session_state,
     render_week_calendar,
@@ -226,6 +227,10 @@ def main():
                     st.markdown(workout.get("description", "").replace("\n", "\n\n"))
                 else:
                     st.info("No workout defined.")
+
+    useful_url = get_useful_info_doc_url()
+    if useful_url:
+        st.link_button("📄 Useful Information", useful_url, type="secondary", use_container_width=True)
 
     st.markdown("---")
 
