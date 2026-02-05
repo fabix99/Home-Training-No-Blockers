@@ -230,18 +230,28 @@ def _day_header_subtitle(d: date) -> str | None:
 
 
 def render_week_calendar(week_start: date, today: date):
-    """Two columns per row: name | week (7 cells in one container). Uses custom HTML so 7 cells stay horizontal on mobile (Streamlit columns stack below 640px)."""
+    """Two columns per row: name | week (7 cells). Player dropdown selects which player's row to show."""
     players = st.session_state.players
     if not players:
         render_empty_players()
         return
 
+    # Initialize or validate selected player
+    if "selected_player" not in st.session_state or st.session_state.selected_player not in players:
+        st.session_state.selected_player = players[0]
+
     days = get_week_days(week_start)
 
-    # Header row: 2 columns – "Player" | 7 day headers in one container
+    # Header row: dropdown (select player) | 7 day headers
     header_cols = st.columns([2, 7])
     with header_cols[0]:
-        st.markdown('<div class="calendar-header-cell calendar-header-player">Player</div>', unsafe_allow_html=True)
+        st.session_state.selected_player = st.selectbox(
+            "Select your name",
+            players,
+            index=players.index(st.session_state.selected_player),
+            key="calendar_selected_player",
+            label_visibility="collapsed",
+        )
     with header_cols[1]:
         day_headers = []
         for d in days:
@@ -256,29 +266,29 @@ def render_week_calendar(week_start: date, today: date):
             )
         st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
 
-    # Data rows: 2 columns – name | 7 cells in one container (.calendar-row) – custom HTML for correct mobile layout
-    for player in players:
-        row_cols = st.columns([2, 7])
-        with row_cols[0]:
-            st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
-        with row_cols[1]:
-            cells = []
-            for d in days:
-                date_key = d.isoformat()
-                is_today = d == today
-                is_done = completed(d, player)
-                cell_cls = "cell" + (" today" if is_today else "") + (" completed" if is_done else "")
-                toggle_param = quote(f"{player}|{date_key}")
-                check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
-                aria_checked = "true" if is_done else "false"
-                cells.append(
-                    f'<div class="calendar-cell">'
-                    f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
-                    f'<a href="?toggle={toggle_param}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
-                    f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
-                    f'</div>'
-                )
-            st.markdown(f'<div class="calendar-row">{"".join(cells)}</div>', unsafe_allow_html=True)
+    # Single data row: selected player only
+    player = st.session_state.selected_player
+    row_cols = st.columns([2, 7])
+    with row_cols[0]:
+        st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
+    with row_cols[1]:
+        cells = []
+        for d in days:
+            date_key = d.isoformat()
+            is_today = d == today
+            is_done = completed(d, player)
+            cell_cls = "cell" + (" today" if is_today else "") + (" completed" if is_done else "")
+            toggle_param = quote(f"{player}|{date_key}")
+            check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
+            aria_checked = "true" if is_done else "false"
+            cells.append(
+                f'<div class="calendar-cell">'
+                f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
+                f'<a href="?toggle={toggle_param}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
+                f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
+                f'</div>'
+            )
+        st.markdown(f'<div class="calendar-row">{"".join(cells)}</div>', unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
