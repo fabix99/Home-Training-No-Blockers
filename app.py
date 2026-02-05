@@ -104,7 +104,7 @@ def get_useful_info_doc_url() -> str:
     if not repo_name or "/" not in repo_name:
         repo_name = DEFAULT_GITHUB_REPO
     encoded_path = quote(USEFUL_INFO_DOC_PATH)
-    return f"https://github.com/{repo_name}/raw/main/{encoded_path}"
+    return f"https://github.com/{repo_name}/blob/main/{encoded_path}"
 
 
 def get_workouts_for_week(workouts: dict, week_start: date) -> dict:
