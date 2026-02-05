@@ -228,9 +228,7 @@ def main():
                 else:
                     st.info("No workout defined.")
 
-    useful_url = get_useful_info_doc_url()
-    if useful_url:
-        st.link_button("📄 Useful Information", useful_url, type="secondary", use_container_width=True)
+    st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
 
     st.markdown("---")
 

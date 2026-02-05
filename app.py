@@ -92,16 +92,17 @@ def load_workouts() -> dict:
 
 
 USEFUL_INFO_DOC_PATH = "docs/Copy of To No Blockers.docx"
+DEFAULT_GITHUB_REPO = "fabix99/Home-Training-No-Blockers"
 
 
-def get_useful_info_doc_url() -> str | None:
-    """Return raw GitHub URL for Useful Information doc, or None if no repo."""
+def get_useful_info_doc_url() -> str:
+    """Return raw GitHub URL for Useful Information doc."""
     try:
         repo_name = st.secrets.get("GITHUB_REPO")
     except Exception:
         repo_name = os.environ.get("GITHUB_REPO")
     if not repo_name or "/" not in repo_name:
-        return None
+        repo_name = DEFAULT_GITHUB_REPO
     encoded_path = quote(USEFUL_INFO_DOC_PATH)
     return f"https://github.com/{repo_name}/raw/main/{encoded_path}"
 
@@ -439,9 +440,7 @@ def main():
                 else:
                     st.info("No workout defined.")
 
-    useful_url = get_useful_info_doc_url()
-    if useful_url:
-        st.link_button("📄 Useful Information", useful_url, type="secondary", use_container_width=True)
+    st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
 
     st.markdown("---")
 
