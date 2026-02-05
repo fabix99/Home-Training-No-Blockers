@@ -209,6 +209,8 @@ def main():
     st.caption("Swipe for all 7 days")
     render_calendar_grid(week_start, today)
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
     # 4. Workout 1, 2, 3
     week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
     w1, w2, w3 = st.columns(3)
