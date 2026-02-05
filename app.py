@@ -230,11 +230,14 @@ def _day_header_subtitle(d: date) -> str | None:
 
 
 def _ensure_selected_player():
-    """Initialize or validate selected player in session state."""
+    """Initialize or validate selected player in session state. Restore from URL if present (survives refresh)."""
     players = st.session_state.players or []
     if not players:
         return
-    if "selected_player" not in st.session_state or st.session_state.selected_player not in players:
+    url_player = st.query_params.get("player")
+    if url_player and url_player in players:
+        st.session_state.selected_player = url_player
+    elif "selected_player" not in st.session_state or st.session_state.selected_player not in players:
         st.session_state.selected_player = players[0]
 
 
@@ -292,7 +295,7 @@ def render_calendar_grid(week_start: date, today: date):
             cells.append(
                 f'<div class="calendar-cell">'
                 f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
-                f'<a href="?toggle={toggle_param}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
+                f'<a href="?toggle={toggle_param}&player={quote(player)}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
                 f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
                 f'</div>'
             )
@@ -326,6 +329,7 @@ def _handle_toggle_param():
             else:
                 st.session_state.save_error = "Could not save. Check connection or GitHub token."
         st.query_params["toggle"] = None
+        st.query_params["player"] = player  # keep selected player after refresh
         st.rerun()
     except (ValueError, TypeError):
         st.query_params["toggle"] = None
