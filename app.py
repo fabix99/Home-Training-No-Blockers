@@ -12,6 +12,8 @@ import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Union
+from urllib.parse import quote
+
 import streamlit as st
 
 # -----------------------------------------------------------------------------
@@ -219,40 +221,8 @@ def _day_header_subtitle(d: date) -> str | None:
     return None
 
 
-@st.fragment
-def _render_calendar_checkboxes(week_start: date, today: date):
-    """Fragment: checkbox buttons only. Reruns independently to avoid full-page refresh."""
-    players = st.session_state.players
-    if not players:
-        return
-    days = get_week_days(week_start)
-    for player in players:
-        row_cols = st.columns([2, 7])
-        with row_cols[0]:
-            st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
-        with row_cols[1]:
-            # Hidden div so :has(.calendar-row) still matches for mobile scroll CSS
-            st.markdown('<div class="calendar-row" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;"></div>', unsafe_allow_html=True)
-            cell_cols = st.columns(7)
-            for i, d in enumerate(days):
-                with cell_cols[i]:
-                    date_key = d.isoformat()
-                    is_done = completed(d, player)
-                    key = f"cb_{player}_{date_key}"
-                    btn_label = "✓" if is_done else ""
-                    if st.button(btn_label, key=key, use_container_width=True, help="Toggle completion"):
-                        set_completed(d, player, not is_done)
-                        if save_completions(st.session_state.completions):
-                            st.session_state.save_feedback_until = time.time() + 2.0
-                            st.session_state.save_error = None
-                            st.toast("Saved!")
-                        else:
-                            st.session_state.save_error = "Could not save. Check connection or GitHub token."
-                            st.toast("Could not save.", icon="❌")
-
-
 def render_week_calendar(week_start: date, today: date):
-    """Two columns per row: name | week (7 cells). Header + fragment for checkbox buttons (no full refresh)."""
+    """Two columns per row: name | week (7 cells in one container). Uses custom HTML so 7 cells stay horizontal on mobile (Streamlit columns stack below 640px)."""
     players = st.session_state.players
     if not players:
         render_empty_players()
@@ -278,8 +248,29 @@ def render_week_calendar(week_start: date, today: date):
             )
         st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
 
-    # Data rows: fragment with checkbox buttons (centered, no full page refresh)
-    _render_calendar_checkboxes(week_start, today)
+    # Data rows: 2 columns – name | 7 cells in one container (.calendar-row) – custom HTML for correct mobile layout
+    for player in players:
+        row_cols = st.columns([2, 7])
+        with row_cols[0]:
+            st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
+        with row_cols[1]:
+            cells = []
+            for d in days:
+                date_key = d.isoformat()
+                is_today = d == today
+                is_done = completed(d, player)
+                cell_cls = "cell" + (" today" if is_today else "") + (" completed" if is_done else "")
+                toggle_param = quote(f"{player}|{date_key}")
+                check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
+                aria_checked = "true" if is_done else "false"
+                cells.append(
+                    f'<div class="calendar-cell">'
+                    f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
+                    f'<a href="?toggle={toggle_param}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
+                    f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
+                    f'</div>'
+                )
+            st.markdown(f'<div class="calendar-row">{"".join(cells)}</div>', unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
