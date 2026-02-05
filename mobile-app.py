@@ -6,6 +6,7 @@ Run with: streamlit run mobile-app.py
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import streamlit as st
@@ -60,20 +61,18 @@ MOBILE_CSS = """
         position: relative !important;
         box-shadow: inset -16px 0 12px -8px rgba(250,250,250,0.95) !important;
     }
-    /* Touch targets >= 44px */
-    .calendar-row .calendar-cell {
+    /* Touch targets >= 44px for calendar checkbox buttons */
+    section.main div[data-testid="column"]:has(.calendar-row) > div > div[data-testid="column"],
+    section.main div[data-testid="column"]:has(.calendar-row) [data-testid="column"] {
         min-width: 44px !important;
         min-height: 44px !important;
         padding: 0.5rem 0.2rem !important;
     }
-    .calendar-row .calendar-cell .cell-checkbox {
-        min-width: 100% !important;
-        min-height: 100% !important;
-    }
-    .cell-checkbox-box,
-    .cell-checkbox {
+    section.main div[data-testid="column"]:has(.calendar-row) .stButton > button {
         min-width: 44px !important;
         min-height: 44px !important;
+        width: 44px !important;
+        height: 44px !important;
     }
     section[data-testid="stSidebar"] .stButton > button,
     section.main .stButton > button {

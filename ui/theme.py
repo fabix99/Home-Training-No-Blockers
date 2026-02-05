@@ -279,6 +279,43 @@ section.main div[data-testid="column"]:has(.calendar-row) .calendar-row {
     color: #06A77D !important;
 }
 
+/* Calendar checkbox buttons (st.fragment): centered in columns, checkbox-style */
+section.main div[data-testid="column"]:has(.calendar-row) > div > div[data-testid="column"],
+section.main div[data-testid="column"]:has(.calendar-row) [data-testid="column"] {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+section.main div[data-testid="column"]:has(.calendar-row) .stButton {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+}
+section.main div[data-testid="column"]:has(.calendar-row) .stButton > button {
+    min-width: 26px !important;
+    min-height: 26px !important;
+    width: 26px !important;
+    height: 26px !important;
+    padding: 0 !important;
+    border-radius: 5px !important;
+    border: 2px solid rgba(5, 13, 118, 0.28) !important;
+    background: rgba(255,255,255,0.9) !important;
+    color: #050d76 !important;
+    font-size: 0.875rem !important;
+    font-weight: 700 !important;
+}
+section.main div[data-testid="column"]:has(.calendar-row) .stButton > button:hover {
+    border-color: rgba(5, 13, 118, 0.5) !important;
+    background: rgba(219, 231, 255, 0.3) !important;
+}
+/* Checked: button with ✓ */
+section.main div[data-testid="column"]:has(.calendar-row) .stButton > button:not(:empty) {
+    background: rgba(6, 167, 125, 0.15) !important;
+    border-color: rgba(6, 167, 125, 0.5) !important;
+    color: #06A77D !important;
+}
+
 .player-name {
     font-family: 'Poppins', sans-serif;
     font-weight: 700;
