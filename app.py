@@ -262,11 +262,10 @@ def render_calendar_grid(week_start: date, today: date):
     player = st.session_state.selected_player
     days = get_week_days(week_start)
 
-    # Header row: selected player name | 7 day headers
-    header_cols = st.columns([2, 7])
-    with header_cols[0]:
-        st.markdown(f'<div class="calendar-header-cell calendar-header-player">{player}</div>', unsafe_allow_html=True)
-    with header_cols[1]:
+    # Header row: 7 day headers; data row: 7 checkboxes (name only in dropdown above)
+    # Wrapped in column for mobile scroll CSS
+    cal_col, = st.columns([1])
+    with cal_col:
         day_headers = []
         for d in days:
             sub = _day_header_subtitle(d)
@@ -280,11 +279,7 @@ def render_calendar_grid(week_start: date, today: date):
             )
         st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
 
-    # Single data row: selected player only
-    row_cols = st.columns([2, 7])
-    with row_cols[0]:
-        st.markdown(f'<div class="player-name">{player}</div>', unsafe_allow_html=True)
-    with row_cols[1]:
+        # Data row: 7 checkboxes
         cells = []
         for d in days:
             date_key = d.isoformat()
