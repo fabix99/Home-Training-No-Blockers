@@ -436,20 +436,16 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 1. Player selector (first for user-friendly flow)
+    # 1. Select your name
     render_player_selector()
     players = st.session_state.players
     if not players:
         return
 
-    # 2. Week label
-    week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
-    st.markdown(f"**{week_label}**")
-
-    # 3. Calendar (selected player's row)
+    # 2. Days of the week + checkboxes (calendar)
     render_calendar_grid(week_start, today)
 
-    # 4. Workout 1, 2, 3 – content per week (workout_1, workout_2, workout_3 for this week only)
+    # 3. Workout 1, 2, 3 – content per week
     week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
     w1, w2, w3 = st.columns(3)
     for col, (btn_label, workout_key) in enumerate(
@@ -464,8 +460,23 @@ def main():
                 else:
                     st.info("No workout defined.")
 
-    # 5. Useful Information
+    # 4. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
+
+    # 5. Prev / Next week (at bottom)
+    week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
+    prev_week = week_start - timedelta(days=7)
+    next_week = week_start + timedelta(days=7)
+    sw_col1, sw_col2 = st.columns(2)
+    with sw_col1:
+        if st.button("← Prev week", key="prev_week", use_container_width=True):
+            st.session_state.week_start = prev_week
+            st.rerun()
+    with sw_col2:
+        if st.button("Next week →", key="next_week", use_container_width=True):
+            st.session_state.week_start = next_week
+            st.rerun()
+    st.markdown(f"**{week_label}**")
 
     st.markdown("---")
 

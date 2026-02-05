@@ -200,27 +200,12 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 1. Player selector (first for user-friendly flow)
+    # 1. Select your name
     render_player_selector()
     if not st.session_state.players:
         return
 
-    # 2. Week switcher in main area (mobile: change week without opening sidebar)
-    week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
-    prev_week = week_start - timedelta(days=7)
-    next_week = week_start + timedelta(days=7)
-    sw_col1, sw_col2 = st.columns(2)
-    with sw_col1:
-        if st.button("← Prev week", key="mobile_prev_week", use_container_width=True):
-            st.session_state.week_start = prev_week
-            st.rerun()
-    with sw_col2:
-        if st.button("Next week →", key="mobile_next_week", use_container_width=True):
-            st.session_state.week_start = next_week
-            st.rerun()
-    st.markdown(f"**{week_label}**")
-
-    # 3. Calendar (selected player's row)
+    # 2. Days of the week + checkboxes (calendar)
     st.caption("Swipe for all 7 days")
     render_calendar_grid(week_start, today)
 
@@ -241,6 +226,21 @@ def main():
 
     # 5. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
+
+    # 6. Prev / Next week (at bottom)
+    week_label = f"Week of {week_start.strftime('%d %b')} – {week_end.strftime('%d %b %Y')}"
+    prev_week = week_start - timedelta(days=7)
+    next_week = week_start + timedelta(days=7)
+    sw_col1, sw_col2 = st.columns(2)
+    with sw_col1:
+        if st.button("← Prev week", key="mobile_prev_week", use_container_width=True):
+            st.session_state.week_start = prev_week
+            st.rerun()
+    with sw_col2:
+        if st.button("Next week →", key="mobile_next_week", use_container_width=True):
+            st.session_state.week_start = next_week
+            st.rerun()
+    st.markdown(f"**{week_label}**")
 
     st.markdown("---")
 
