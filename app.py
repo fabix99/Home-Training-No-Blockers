@@ -91,20 +91,12 @@ def load_workouts() -> dict:
     return _load_data("data/workouts.json", "workouts.json", {})
 
 
-USEFUL_INFO_DOC_PATH = "docs/Copy of To No Blockers.docx"
-DEFAULT_GITHUB_REPO = "fabix99/Home-Training-No-Blockers"
+USEFUL_INFO_DOC_URL = "https://docs.google.com/document/d/1m-3EW-5I0-B03iaDi8KEFfrfxn30Bp0h/edit?usp=sharing"
 
 
 def get_useful_info_doc_url() -> str:
-    """Return raw GitHub URL for Useful Information doc."""
-    try:
-        repo_name = st.secrets.get("GITHUB_REPO")
-    except Exception:
-        repo_name = os.environ.get("GITHUB_REPO")
-    if not repo_name or "/" not in repo_name:
-        repo_name = DEFAULT_GITHUB_REPO
-    encoded_path = quote(USEFUL_INFO_DOC_PATH)
-    return f"https://github.com/{repo_name}/blob/main/{encoded_path}"
+    """Return Google Docs URL for Useful Information."""
+    return USEFUL_INFO_DOC_URL
 
 
 def get_workouts_for_week(workouts: dict, week_start: date) -> dict:
