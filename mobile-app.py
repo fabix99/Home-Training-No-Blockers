@@ -6,7 +6,6 @@ Run with: streamlit run mobile-app.py
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -16,18 +15,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import streamlit as st
 
 from app import (
+    EDITOR_PLAYERS,
+    WORKOUT_DOC_ID,
     _ensure_selected_player,
     _handle_toggle_param,
     _monday_of_week,
     apply_dashboard_theme,
     count_player_week_completions,
     count_week_completions,
+    fetch_workout_of_the_week,
     get_star_of_the_week,
     get_useful_info_doc_url,
     get_workouts_for_week,
     init_session_state,
     render_calendar_grid,
     render_player_selector,
+    render_workout_content,
     save_completions,
     save_workouts,
 )
@@ -196,20 +199,11 @@ def main():
             st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
 
     st.sidebar.markdown("---")
-    editor_password = None
-    try:
-        editor_password = st.secrets.get("EDITOR_PASSWORD")
-    except Exception:
-        editor_password = os.environ.get("EDITOR_PASSWORD")
-    if st.session_state.is_editor:
-        if st.sidebar.button("🔒 Lock editing", use_container_width=True):
-            st.session_state.is_editor = False
-            st.rerun()
-    elif editor_password:
-        pw = st.sidebar.text_input("Editor password", type="password", key="editor_pw_mobile")
-        if st.sidebar.button("Unlock editing", use_container_width=True) and pw == editor_password:
-            st.session_state.is_editor = True
-            st.rerun()
+    # Editing only for Begum and Fabio URLs (no password)
+    st.session_state.is_editor = (
+        st.session_state.get("player_locked_by_token")
+        and st.session_state.get("selected_player") in EDITOR_PLAYERS
+    )
 
     col_header1, col_header2 = st.columns([3, 2])
     with col_header1:
@@ -239,20 +233,14 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 4. Workout 1, 2, 3
-    week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
-    w1, w2, w3 = st.columns(3)
-    for col, (btn_label, workout_key) in enumerate(
-        [("Workout 1", "workout_1"), ("Workout 2", "workout_2"), ("Workout 3", "workout_3")]
-    ):
-        with [w1, w2, w3][col]:
-            workout = week_workouts.get(workout_key)
-            with st.popover(btn_label, width="stretch"):
-                if workout:
-                    st.markdown(f"**{workout.get('title', 'Workout')}**")
-                    st.markdown(workout.get("description", "").replace("\n", "\n\n"))
-                else:
-                    st.info("No workout defined.")
+    # 4. Workout of the week – fetched from Google Doc
+    workout_content, workout_error = fetch_workout_of_the_week()
+    with st.popover("Workout of the week", use_container_width=True):
+        if workout_error:
+            st.warning(workout_error)
+            st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
+        elif workout_content:
+            render_workout_content(workout_content)
 
     # 5. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
@@ -273,7 +261,7 @@ def main():
     st.markdown("---")
 
     if st.session_state.is_editor:
-        st.subheader("✏️ Edit workouts (this week only)")
+        st.subheader("✏️ Edit workouts (this week only)")  # Only for Begum/Fabio URLs
         week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
         w1_title = st.text_input("Workout 1 – Title", value=week_workouts.get("workout_1", {}).get("title", ""), key="ew1_title_m")
         w1_desc = st.text_area("Workout 1 – Description", value=week_workouts.get("workout_1", {}).get("description", ""), key="ew1_desc_m", height=120)

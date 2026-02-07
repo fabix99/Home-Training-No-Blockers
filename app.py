@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from urllib.parse import quote
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 # Ensure project root is on path so "ui" resolves when this module is loaded (e.g. Streamlit Cloud)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -106,10 +109,119 @@ def load_workouts() -> dict:
 
 USEFUL_INFO_DOC_URL = "https://docs.google.com/document/d/1m-3EW-5I0-B03iaDi8KEFfrfxn30Bp0h/edit?usp=sharing"
 
+# Workout of the week: fetched from this Google Doc (export as plain text). Content is taken from section "Workout of the week" until "Exercise Pool".
+WORKOUT_DOC_ID = "17zFCgNEfgNndKi19xvXNbk7ebg2HrV3DYUOV282aZ64"
+WORKOUT_DOC_EXPORT_URL = f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/export?format=txt"
+
+# Editing workouts is allowed only when opened via these players' private URLs (?token=).
+EDITOR_PLAYERS = ("Begum", "Fabio")
+
+# Cache TTL for fetched workout content (seconds)
+WORKOUT_FETCH_CACHE_TTL = 300
+
 
 def get_useful_info_doc_url() -> str:
     """Return Google Docs URL for Useful Information."""
     return USEFUL_INFO_DOC_URL
+
+
+def _parse_workout_of_the_week_section(text: str) -> str:
+    """Extract content under 'Workout of the week' until 'Exercise Pool' (or end). Case-insensitive."""
+    if not text or not text.strip():
+        return ""
+    start_marker = "workout of the week"
+    end_marker = "exercise pool"
+    lower = text.lower()
+    start_idx = lower.find(start_marker)
+    if start_idx == -1:
+        return ""
+    # Skip past the heading line so we don't repeat it
+    line_end = text.find("\n", start_idx)
+    if line_end == -1:
+        content_start = start_idx + len(start_marker)
+        rest = text[content_start:].strip()
+    else:
+        content_start = line_end + 1
+        rest = text[content_start:].strip()
+    end_idx = rest.lower().find(end_marker)
+    if end_idx != -1:
+        rest = rest[:end_idx].strip()
+    return rest.strip()
+
+
+def fetch_workout_of_the_week() -> Tuple[Optional[str], Optional[str]]:
+    """
+    Fetch the Google Doc and return the "Workout of the week" section.
+    Returns (content, error_message). On success content is non-empty and error is None; on failure content is None and error is set.
+    Uses session-state cache with WORKOUT_FETCH_CACHE_TTL to avoid hitting Google on every rerun.
+    """
+    cache_key = "workout_of_the_week_cache"
+    now = time.time()
+    cached = st.session_state.get(cache_key)
+    if cached is not None:
+        ts, content, err = cached
+        if now - ts < WORKOUT_FETCH_CACHE_TTL and content is not None:
+            return (content, None)
+        if now - ts < WORKOUT_FETCH_CACHE_TTL and err is not None:
+            return (None, err)
+    content = None
+    err_msg = None
+    try:
+        req = Request(WORKOUT_DOC_EXPORT_URL, headers={"User-Agent": "HomeTrainingNoBlockers/1.0"})
+        with urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        parsed = _parse_workout_of_the_week_section(raw)
+        if not parsed:
+            err_msg = "Could not find 'Workout of the week' section in the document."
+            content = None
+        else:
+            content = parsed
+    except (URLError, HTTPError, OSError) as e:
+        err_msg = f"Could not load workout: {e}"
+    st.session_state[cache_key] = (now, content, err_msg)
+    if err_msg and content is None:
+        return (None, err_msg)
+    return (content or "", None)
+
+
+def _linkify(text: str) -> str:
+    """Turn raw URLs in text into markdown links so they render clickable."""
+    if not text:
+        return text
+
+    def replace_url(match: re.Match) -> str:
+        url = match.group(0).rstrip(".,;:)'\"]")
+        return f"[{url}]({url})"
+
+    return re.sub(r"https?://\S+", replace_url, text)
+
+
+def _is_youtube_url(s: str) -> bool:
+    """True if s is (or is only) a YouTube watch or youtu.be URL."""
+    s = s.strip()
+    if not s:
+        return False
+    pattern = r"^(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[\w\-]+"
+    return bool(re.match(pattern, s, re.IGNORECASE))
+
+
+def render_workout_content(content: str) -> None:
+    """
+    Render workout text: make links clickable, and embed YouTube videos in-place
+    so they are playable on mobile without leaving the app.
+    """
+    if not content:
+        return
+    lines = content.split("\n")
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            st.markdown("")
+            continue
+        if _is_youtube_url(stripped):
+            st.video(stripped)
+        else:
+            st.markdown(_linkify(line))
 
 
 def get_workouts_for_week(workouts: dict, week_start: date) -> dict:
@@ -501,22 +613,12 @@ def main():
             label = "Stars of the week:" if len(names) > 1 else "Star of the week:"
             st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
 
-    # Editor: unlock with password (EDITOR_PASSWORD in Secrets)
     st.sidebar.markdown("---")
-    editor_password = None
-    try:
-        editor_password = st.secrets.get("EDITOR_PASSWORD")
-    except Exception:
-        editor_password = os.environ.get("EDITOR_PASSWORD")
-    if st.session_state.is_editor:
-        if st.sidebar.button("🔒 Lock editing", use_container_width=True):
-            st.session_state.is_editor = False
-            st.rerun()
-    elif editor_password:
-        pw = st.sidebar.text_input("Editor password", type="password", key="editor_pw")
-        if st.sidebar.button("Unlock editing", use_container_width=True) and pw == editor_password:
-            st.session_state.is_editor = True
-            st.rerun()
+    # Editing only for Begum and Fabio URLs (no password)
+    st.session_state.is_editor = (
+        st.session_state.get("player_locked_by_token")
+        and st.session_state.get("selected_player") in EDITOR_PLAYERS
+    )
 
     # ---------- Main header (matches analytics: NO BLOCKERS + subtitle | tagline) ----------
     col_header1, col_header2 = st.columns([3, 2])
@@ -547,20 +649,14 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. Workout 1, 2, 3 – content per week
-    week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
-    w1, w2, w3 = st.columns(3)
-    for col, (btn_label, workout_key) in enumerate(
-        [("Workout 1", "workout_1"), ("Workout 2", "workout_2"), ("Workout 3", "workout_3")]
-    ):
-        with [w1, w2, w3][col]:
-            workout = week_workouts.get(workout_key)
-            with st.popover(btn_label, width="stretch"):
-                if workout:
-                    st.markdown(f"**{workout.get('title', 'Workout')}**")
-                    st.markdown(workout.get("description", "").replace("\n", "\n\n"))
-                else:
-                    st.info("No workout defined.")
+    # 3. Workout of the week – fetched from Google Doc
+    workout_content, workout_error = fetch_workout_of_the_week()
+    with st.popover("Workout of the week", use_container_width=True):
+        if workout_error:
+            st.warning(workout_error)
+            st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
+        elif workout_content:
+            render_workout_content(workout_content)
 
     # 4. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
@@ -580,7 +676,7 @@ def main():
 
     st.markdown("---")
 
-    # Edit workouts (this week only) – visible when editor is unlocked
+    # Edit workouts (this week only) – visible only for Begum/Fabio URLs
     if st.session_state.is_editor:
         st.subheader("✏️ Edit workouts (this week only)")
         week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)

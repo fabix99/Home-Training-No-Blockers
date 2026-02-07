@@ -330,19 +330,12 @@ section.main .stButton > button:hover {
     color: #06A77D;
 }
 
-/* Workout 1, 2, 3 buttons: full width – target the 3-column row (only one with exactly 3 columns) */
-section.main [data-testid="stHorizontalBlock"]:has(> div:first-child:nth-last-child(3)) {
-    width: 100% !important;
-}
-section.main [data-testid="stHorizontalBlock"]:has(> div:first-child:nth-last-child(3)) > div {
-    flex: 1 !important;
-    min-width: 0 !important;
-}
-section.main [data-testid="stHorizontalBlock"]:has(> div:first-child:nth-last-child(3)) [data-testid="stPopover"] {
+/* Workout of the week: single full-width popover (was 3 columns) */
+section.main [data-testid="stHorizontalBlock"]:has(> div:first-child:nth-last-child(1)) [data-testid="stPopover"] {
     width: 100% !important;
     display: block !important;
 }
-section.main [data-testid="stHorizontalBlock"]:has(> div:first-child:nth-last-child(3)) [data-testid="stPopover"] button {
+section.main [data-testid="stHorizontalBlock"]:has(> div:first-child:nth-last-child(1)) [data-testid="stPopover"] button {
     width: 100% !important;
 }
 

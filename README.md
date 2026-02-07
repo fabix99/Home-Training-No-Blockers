@@ -41,10 +41,14 @@ After that, every checkbox toggle reads `data/completions.json` from the repo vi
 ## Data files
 
 - **data/players.json** – Fixed list of player names (one row per player in the calendar).
-- **data/workouts.json** – Workouts **per week**: key = week start date (`YYYY-MM-DD`, Monday); value = `{ "workout_1", "workout_2", "workout_3" }` (each with `title` and `description`). Workout 1/2/3 are shown in the popovers; editing applies only to the current week.
+- **data/workouts.json** – Workouts per week (used by the Begum/Fabio editor only). The **Workout of the week** shown in the app is fetched from a Google Doc (see below).
 - **data/completions.json** – Who completed which day (`YYYY-MM-DD` → list of player names). Updated when someone checks the box.
 
-Edit `players.json` in the repo (or in `data/`). Workouts can be edited **in the app** (see below) or by editing `workouts.json` in the repo.
+Edit `players.json` in the repo (or in `data/`).
+
+## Workout of the week (Google Doc)
+
+The app shows a single **Workout of the week** button. The content is fetched automatically from a Google Doc: the section between **"Workout of the week"** and **"Exercise Pool"** is displayed. The doc URL is set in `app.py` (`WORKOUT_DOC_ID`). For the export to work without login, the doc must be shared so **Anyone with the link can view** (or **Published to web**). If the fetch fails, the app shows a message and a link to open the document.
 
 ## Private links (confidentiality)
 
@@ -68,11 +72,9 @@ The app **requires a link** to open. Without a token in the URL, users see only 
 
 Regenerating tokens (run the script again) overwrites both files; old links stop working.
 
-## Edit workouts (password-protected)
+## Edit workouts (URL-based)
 
-To edit the three workouts **for the current week only** (other weeks stay unchanged):
+Editing the three workouts **for the current week only** is allowed only when the app is opened via **Begum’s** or **Fabio’s** private URL (the link that contains their `?token=...`). No password is used.
 
-1. Add **EDITOR_PASSWORD** to Secrets (Streamlit Cloud) or to `.streamlit/secrets.toml` (local). Use a password only the editor (e.g. coach) should know.
-2. In the app sidebar, enter the password and click **Unlock editing**.
-3. An **Edit workouts (this week only)** section appears: change titles and descriptions for Workout 1, 2, 3, then click **Save workouts for this week**. Data is written to `data/workouts.json` in the repo (or locally if no GitHub).
-4. Click **Lock editing** in the sidebar to hide the form again.
+1. Open the app using Begum’s or Fabio’s personal link (from `docs/player_links.md` or the link shared with you).
+2. An **Edit workouts (this week only)** section appears at the bottom: change titles and descriptions for Workout 1, 2, 3, then click **Save workouts for this week**. Data is written to `data/workouts.json` in the repo (or locally if no GitHub).

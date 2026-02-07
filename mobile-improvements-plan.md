@@ -91,7 +91,7 @@ Prioritized list of improvements for the mobile-friendly Home Training Tracker (
 
 **Suggestions:**
 - Add a **compact week switcher** in the main area on mobile only (e.g. “← Week of 2 Feb | Next →” or two buttons) so users can change the week without opening the sidebar.
-- Keep the full sidebar for jump-to-date and editor password.
+- Keep the full sidebar for jump-to-date and editor (Begum/Fabio URLs).
 
 **Plan:**
 - In `mobile-app.py`, inside the mobile layout block: add a row above the week label with two buttons “Prev week” and “Next week” that update `st.session_state.week_start` and rerun. Style with MOBILE_CSS so it’s full-width and touch-friendly. Keep sidebar as-is for jump and editor.
