@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 from urllib.parse import quote
+
+# Ensure project root is on path so "ui" resolves when this module is loaded (e.g. Streamlit Cloud)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import streamlit as st
 
