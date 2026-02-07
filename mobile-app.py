@@ -7,7 +7,11 @@ Run with: streamlit run mobile-app.py
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
+
+# Ensure project root is on path so "app" and "app.ui" resolve (Streamlit Cloud runs main file from repo root)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import streamlit as st
 
