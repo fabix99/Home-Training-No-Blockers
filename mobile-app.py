@@ -12,9 +12,11 @@ from pathlib import Path
 import streamlit as st
 
 from app import (
+    _ensure_selected_player,
     _handle_toggle_param,
     _monday_of_week,
     apply_dashboard_theme,
+    count_player_week_completions,
     count_week_completions,
     get_star_of_the_week,
     get_useful_info_doc_url,
@@ -119,6 +121,22 @@ def main():
     if "week_start" not in st.session_state:
         st.session_state.week_start = _monday_of_week(today)
 
+    _ensure_selected_player()
+    has_valid_token = (
+        st.session_state.get("player_locked_by_token") or st.session_state.get("full_view_by_token")
+    )
+    if not has_valid_token:
+        st.markdown("""
+        <div class="main-header">
+            <span class="brand-name">⚫ NO BLOCKERS</span>
+            <span class="subtitle">Home Training Tracker</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("**Welcome to the main page!**")
+        st.markdown("To access your data, use the link that was shared individually with you. If you don't have it, ask Fabio, and save it for next time!")
+        return
+
     week_start = st.session_state.week_start
     week_end = week_start + timedelta(days=6)
     players = st.session_state.players
@@ -153,19 +171,25 @@ def main():
 
     st.sidebar.markdown("---")
     if players:
-        week_count = count_week_completions(week_start)
-        summary_text = f"This week: {week_count} workout{'s' if week_count != 1 else ''} logged"
-        if week_count >= 7 * len(players):
-            summary_text = "This week: everyone logged! 🏐"
+        if st.session_state.get("player_locked_by_token"):
+            p = st.session_state.selected_player
+            my_count = count_player_week_completions(week_start, p)
+            summary_text = f"Your progress: {my_count} day{'s' if my_count != 1 else ''} logged this week"
+        else:
+            week_count = count_week_completions(week_start)
+            summary_text = f"This week: {week_count} workout{'s' if week_count != 1 else ''} logged"
+            if week_count >= 7 * len(players):
+                summary_text = "This week: everyone logged! 🏐"
     else:
         summary_text = "Add players to start"
     st.sidebar.caption(summary_text)
 
-    star = get_star_of_the_week(week_start)
-    if star:
-        names, count = star
-        label = "Stars of the week:" if len(names) > 1 else "Star of the week:"
-        st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
+    if not st.session_state.get("player_locked_by_token"):
+        star = get_star_of_the_week(week_start)
+        if star:
+            names, count = star
+            label = "Stars of the week:" if len(names) > 1 else "Star of the week:"
+            st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
 
     st.sidebar.markdown("---")
     editor_password = None

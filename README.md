@@ -46,6 +46,28 @@ After that, every checkbox toggle reads `data/completions.json` from the repo vi
 
 Edit `players.json` in the repo (or in `data/`). Workouts can be edited **in the app** (see below) or by editing `workouts.json` in the repo.
 
+## Private links (confidentiality)
+
+The app **requires a link** to open. Without a token in the URL, users see only a “use your link” message and no data.
+
+1. Generate tokens and get shareable links:
+   ```bash
+   python generate_player_tokens.py https://your-app.onstreamlit.app
+   ```
+   This creates:
+   - **data/player_tokens.json** – one token per player (private view).
+   - **data/full_view_token.txt** – one token for the “see everyone” view (player selector, team stats, star of the week).
+
+2. Share links:
+   - **Full view** – Share only with coach/admin. Opens the full app (everyone’s data, player dropdown, star of the week).
+   - **Per-player links** – Share each only with that player. They see only their name and their progress.
+
+3. Commit and push **data/player_tokens.json** and **data/full_view_token.txt** so the deployed app can read them.
+
+4. If someone removes the token from the URL, they only see the “use your link” page; they cannot reach the full view without the full-view token.
+
+Regenerating tokens (run the script again) overwrites both files; old links stop working.
+
 ## Edit workouts (password-protected)
 
 To edit the three workouts **for the current week only** (other weeks stay unchanged):

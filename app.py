@@ -48,6 +48,15 @@ def read_json_from_github(repo, path: str) -> Union[dict, list]:
         return {} if "completions" in path or "workouts" in path else []
 
 
+def read_text_from_github(repo, path: str) -> str | None:
+    """Read a text file from the repo. Returns content as string or None."""
+    try:
+        f = repo.get_contents(path)
+        return f.decoded_content.decode().strip()
+    except Exception:
+        return None
+
+
 def write_json_to_github(repo, path: str, data: Union[dict, list], message: str) -> bool:
     """Overwrite a JSON file in the repo. Returns True on success."""
     try:
@@ -125,6 +134,25 @@ def load_completions() -> dict:
     return _load_data("data/completions.json", "completions.json", {})
 
 
+def load_player_tokens() -> dict:
+    """Load mapping { token: player_name } from GitHub or local. Used for private per-player URLs."""
+    return _load_data("data/player_tokens.json", "player_tokens.json", {})
+
+
+def load_full_view_token() -> str | None:
+    """Load the token that grants access to the full view (everyone). From data/full_view_token.txt."""
+    repo = get_github_repo()
+    if repo:
+        s = read_text_from_github(repo, "data/full_view_token.txt")
+        if s:
+            return s
+    path = DATA_DIR / "full_view_token.txt"
+    if path.exists():
+        with open(path, encoding="utf-8") as f:
+            return f.read().strip() or None
+    return None
+
+
 def save_completions(completions: dict) -> bool:
     """Persist completions to GitHub (or local if no repo). Returns True on success."""
     repo = get_github_repo()
@@ -147,9 +175,14 @@ def init_session_state():
         ("completions", load_completions),
         ("workouts", load_workouts),
         ("players", load_players),
+        ("player_tokens", load_player_tokens),
+        ("full_view_token", load_full_view_token),
         ("save_feedback_until", 0),
         ("save_error", None),
         ("is_editor", False),
+        ("player_locked_by_token", False),
+        ("full_view_by_token", False),
+        ("player_url_token", None),
     ]
     for key, val in inits:
         if key not in st.session_state:
@@ -191,6 +224,13 @@ def count_week_completions(week_start: date) -> int:
     return sum(len(comp.get(d.isoformat(), [])) for d in get_week_days(week_start))
 
 
+def count_player_week_completions(week_start: date, player: str) -> int:
+    """Number of days this player completed in the week."""
+    comp = st.session_state.completions
+    days = get_week_days(week_start)
+    return sum(1 for d in days if player in comp.get(d.isoformat(), []))
+
+
 def get_star_of_the_week(week_start: date) -> tuple[list[str], int] | None:
     """Player(s) with the most completions this week. Returns (names, count) or None if no completions."""
     players = st.session_state.players or []
@@ -230,10 +270,39 @@ def _day_header_subtitle(d: date) -> str | None:
 
 
 def _ensure_selected_player():
-    """Initialize or validate selected player in session state. Restore from URL if present (survives refresh)."""
+    """Resolve ?token=: full-view token shows everyone; player token locks to that player; no/invalid token = no access."""
     players = st.session_state.players or []
     if not players:
         return
+    token = st.query_params.get("token")
+    full_view = st.session_state.get("full_view_token")
+    token_to_player = st.session_state.get("player_tokens") or {}
+
+    if token and full_view and token == full_view:
+        st.session_state.full_view_by_token = True
+        st.session_state.player_locked_by_token = False
+        st.session_state.player_url_token = token
+        url_player = st.query_params.get("player")
+        if url_player and url_player in players:
+            st.session_state.selected_player = url_player
+        elif "selected_player" not in st.session_state or st.session_state.selected_player not in players:
+            st.session_state.selected_player = players[0]
+        return
+    if token and token in token_to_player:
+        player = token_to_player[token]
+        if player in players:
+            st.session_state.selected_player = player
+            st.session_state.player_locked_by_token = True
+            st.session_state.full_view_by_token = False
+            st.session_state.player_url_token = token
+            return
+        st.session_state.player_locked_by_token = False
+        st.session_state.player_url_token = None
+    else:
+        if token:
+            st.session_state.player_locked_by_token = False
+            st.session_state.player_url_token = None
+        st.session_state.full_view_by_token = False
     url_player = st.query_params.get("player")
     if url_player and url_player in players:
         st.session_state.selected_player = url_player
@@ -242,12 +311,15 @@ def _ensure_selected_player():
 
 
 def render_player_selector():
-    """Player dropdown – call first for user-friendly flow."""
+    """Player dropdown – or read-only label when opened via private link (?token=)."""
     players = st.session_state.players
     if not players:
         render_empty_players()
         return
     _ensure_selected_player()
+    if st.session_state.get("player_locked_by_token"):
+        st.markdown(f"**Logged in as:** {st.session_state.selected_player}")
+        return
     st.session_state.selected_player = st.selectbox(
         "Select your name",
         players,
@@ -292,10 +364,11 @@ def render_calendar_grid(week_start: date, today: date):
             toggle_param = quote(f"{player}|{date_key}")
             check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
             aria_checked = "true" if is_done else "false"
+            token_suffix = f"&token={quote(st.session_state.player_url_token)}" if st.session_state.get("player_url_token") else ""
             cells.append(
                 f'<div class="calendar-cell">'
                 f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
-                f'<a href="?toggle={toggle_param}&player={quote(player)}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
+                f'<a href="?toggle={toggle_param}&player={quote(player)}{token_suffix}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
                 f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
                 f'</div>'
             )
@@ -329,7 +402,9 @@ def _handle_toggle_param():
             else:
                 st.session_state.save_error = "Could not save. Check connection or GitHub token."
         st.query_params["toggle"] = None
-        st.query_params["player"] = player  # keep selected player after refresh
+        st.query_params["player"] = player
+        if st.session_state.get("player_url_token"):
+            st.query_params["token"] = st.session_state.player_url_token
         st.rerun()
     except (ValueError, TypeError):
         st.query_params["toggle"] = None
@@ -350,6 +425,22 @@ def main():
     today = date.today()
     if "week_start" not in st.session_state:
         st.session_state.week_start = _monday_of_week(today)
+
+    _ensure_selected_player()
+    has_valid_token = (
+        st.session_state.get("player_locked_by_token") or st.session_state.get("full_view_by_token")
+    )
+    if not has_valid_token:
+        st.markdown("""
+        <div class="main-header">
+            <span class="brand-name">⚫ NO BLOCKERS</span>
+            <span class="subtitle">Home Training Tracker</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("**Welcome to the main page!**")
+        st.markdown("To access your data, use the link that was shared individually with you. If you don't have it, ask Fabio, and save it for next time!")
+        return
 
     week_start = st.session_state.week_start
     week_end = week_start + timedelta(days=6)
@@ -386,19 +477,25 @@ def main():
 
     st.sidebar.markdown("---")
     if players:
-        week_count = count_week_completions(week_start)
-        summary_text = f"This week: {week_count} workout{'s' if week_count != 1 else ''} logged"
-        if week_count >= 7 * len(players):
-            summary_text = "This week: everyone logged! 🏐"
+        if st.session_state.get("player_locked_by_token"):
+            p = st.session_state.selected_player
+            my_count = count_player_week_completions(week_start, p)
+            summary_text = f"Your progress: {my_count} day{'s' if my_count != 1 else ''} logged this week"
+        else:
+            week_count = count_week_completions(week_start)
+            summary_text = f"This week: {week_count} workout{'s' if week_count != 1 else ''} logged"
+            if week_count >= 7 * len(players):
+                summary_text = "This week: everyone logged! 🏐"
     else:
         summary_text = "Add players to start"
     st.sidebar.caption(summary_text)
 
-    star = get_star_of_the_week(week_start)
-    if star:
-        names, count = star
-        label = "Stars of the week:" if len(names) > 1 else "Star of the week:"
-        st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
+    if not st.session_state.get("player_locked_by_token"):
+        star = get_star_of_the_week(week_start)
+        if star:
+            names, count = star
+            label = "Stars of the week:" if len(names) > 1 else "Star of the week:"
+            st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
 
     # Editor: unlock with password (EDITOR_PASSWORD in Secrets)
     st.sidebar.markdown("---")
