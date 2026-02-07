@@ -114,9 +114,6 @@ WORKOUT_DOC_ID = "17zFCgNEfgNndKi19xvXNbk7ebg2HrV3DYUOV282aZ64"
 WORKOUT_DOC_EXPORT_HTML = f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/export?format=html"
 WORKOUT_DOC_EXPORT_URL = f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/export?format=txt"
 
-# Editing workouts is allowed only when opened via these players' private URLs (?token=).
-EDITOR_PLAYERS = ("Begum", "Fabio")
-
 # Cache TTL for fetched workout content (seconds)
 WORKOUT_FETCH_CACHE_TTL = 300
 
@@ -361,7 +358,6 @@ def init_session_state():
         ("full_view_token", load_full_view_token),
         ("save_feedback_until", 0),
         ("save_error", None),
-        ("is_editor", False),
         ("player_locked_by_token", False),
         ("full_view_by_token", False),
         ("player_url_token", None),
@@ -624,9 +620,6 @@ def main():
         st.markdown("To access your data, use the link that was shared individually with you. If you don't have it, ask Fabio, and save it for next time!")
         st.markdown("")
         st.markdown("But while you're here, here is the **workout of the week**:")
-        if st.button("🔄 Refresh", key="refresh_workout_no_token", help="Reload from Google Doc"):
-            st.session_state.pop("workout_of_the_week_cache", None)
-            st.rerun()
         workout_content, workout_error = fetch_workout_of_the_week()
         if workout_error:
             st.warning(workout_error)
@@ -691,11 +684,6 @@ def main():
             st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
 
     st.sidebar.markdown("---")
-    # Editing only for Begum and Fabio URLs (no password)
-    st.session_state.is_editor = (
-        st.session_state.get("player_locked_by_token")
-        and st.session_state.get("selected_player") in EDITOR_PLAYERS
-    )
 
     # ---------- Main header (matches analytics: NO BLOCKERS + subtitle | tagline) ----------
     col_header1, col_header2 = st.columns([3, 2])
@@ -729,9 +717,6 @@ def main():
     # 3. Workout of the week – fetched from Google Doc
     workout_content, workout_error = fetch_workout_of_the_week()
     with st.popover("Workout of the week", use_container_width=True):
-        if st.button("🔄 Refresh", key="refresh_workout", help="Reload from Google Doc"):
-            st.session_state.pop("workout_of_the_week_cache", None)
-            st.rerun()
         if workout_error:
             st.warning(workout_error)
             st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
@@ -755,32 +740,6 @@ def main():
             st.rerun()
 
     st.markdown("---")
-
-    # Edit workouts (this week only) – visible only for Begum/Fabio URLs
-    if st.session_state.is_editor:
-        st.subheader("✏️ Edit workouts (this week only)")
-        week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
-        w1_title = st.text_input("Workout 1 – Title", value=week_workouts.get("workout_1", {}).get("title", ""), key="ew1_title")
-        w1_desc = st.text_area("Workout 1 – Description", value=week_workouts.get("workout_1", {}).get("description", ""), key="ew1_desc", height=120)
-        w2_title = st.text_input("Workout 2 – Title", value=week_workouts.get("workout_2", {}).get("title", ""), key="ew2_title")
-        w2_desc = st.text_area("Workout 2 – Description", value=week_workouts.get("workout_2", {}).get("description", ""), key="ew2_desc", height=120)
-        w3_title = st.text_input("Workout 3 – Title", value=week_workouts.get("workout_3", {}).get("title", ""), key="ew3_title")
-        w3_desc = st.text_area("Workout 3 – Description", value=week_workouts.get("workout_3", {}).get("description", ""), key="ew3_desc", height=120)
-        if st.button("Save workouts for this week", type="primary", key="save_workouts_btn"):
-            workouts = dict(st.session_state.workouts)
-            week_key = week_start.isoformat()
-            workouts[week_key] = {
-                "workout_1": {"title": w1_title or "Workout 1", "description": w1_desc or ""},
-                "workout_2": {"title": w2_title or "Workout 2", "description": w2_desc or ""},
-                "workout_3": {"title": w3_title or "Workout 3", "description": w3_desc or ""},
-            }
-            if save_workouts(workouts):
-                st.session_state.workouts = workouts
-                st.success("Workouts saved for this week.")
-                st.rerun()
-            else:
-                st.error("Could not save. Check connection or GitHub token.")
-        st.markdown("---")
 
     # Save feedback ("Saved" for 2s) or error + retry
     now = time.time()

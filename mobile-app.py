@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import streamlit as st
 
 from app import (
-    EDITOR_PLAYERS,
     WORKOUT_DOC_ID,
     _ensure_selected_player,
     _handle_toggle_param,
@@ -26,13 +25,11 @@ from app import (
     fetch_workout_of_the_week,
     get_star_of_the_week,
     get_useful_info_doc_url,
-    get_workouts_for_week,
     init_session_state,
     render_calendar_grid,
     render_player_selector,
     render_workout_content,
     save_completions,
-    save_workouts,
 )
 from datetime import date, timedelta
 import time
@@ -144,9 +141,6 @@ def main():
         st.markdown("To access your data, use the link that was shared individually with you. If you don't have it, ask Fabio, and save it for next time!")
         st.markdown("")
         st.markdown("But while you're here, here is the **workout of the week**:")
-        if st.button("🔄 Refresh", key="refresh_workout_no_token_m", help="Reload from Google Doc"):
-            st.session_state.pop("workout_of_the_week_cache", None)
-            st.rerun()
         workout_content, workout_error = fetch_workout_of_the_week()
         if workout_error:
             st.warning(workout_error)
@@ -210,11 +204,6 @@ def main():
             st.sidebar.caption(f"⭐ {label} {', '.join(names)} ({count})")
 
     st.sidebar.markdown("---")
-    # Editing only for Begum and Fabio URLs (no password)
-    st.session_state.is_editor = (
-        st.session_state.get("player_locked_by_token")
-        and st.session_state.get("selected_player") in EDITOR_PLAYERS
-    )
 
     col_header1, col_header2 = st.columns([3, 2])
     with col_header1:
@@ -247,9 +236,6 @@ def main():
     # 4. Workout of the week – fetched from Google Doc
     workout_content, workout_error = fetch_workout_of_the_week()
     with st.popover("Workout of the week", use_container_width=True):
-        if st.button("🔄 Refresh", key="refresh_workout_m", help="Reload from Google Doc"):
-            st.session_state.pop("workout_of_the_week_cache", None)
-            st.rerun()
         if workout_error:
             st.warning(workout_error)
             st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
@@ -273,31 +259,6 @@ def main():
             st.rerun()
 
     st.markdown("---")
-
-    if st.session_state.is_editor:
-        st.subheader("✏️ Edit workouts (this week only)")  # Only for Begum/Fabio URLs
-        week_workouts = get_workouts_for_week(st.session_state.workouts, week_start)
-        w1_title = st.text_input("Workout 1 – Title", value=week_workouts.get("workout_1", {}).get("title", ""), key="ew1_title_m")
-        w1_desc = st.text_area("Workout 1 – Description", value=week_workouts.get("workout_1", {}).get("description", ""), key="ew1_desc_m", height=120)
-        w2_title = st.text_input("Workout 2 – Title", value=week_workouts.get("workout_2", {}).get("title", ""), key="ew2_title_m")
-        w2_desc = st.text_area("Workout 2 – Description", value=week_workouts.get("workout_2", {}).get("description", ""), key="ew2_desc_m", height=120)
-        w3_title = st.text_input("Workout 3 – Title", value=week_workouts.get("workout_3", {}).get("title", ""), key="ew3_title_m")
-        w3_desc = st.text_area("Workout 3 – Description", value=week_workouts.get("workout_3", {}).get("description", ""), key="ew3_desc_m", height=120)
-        if st.button("Save workouts for this week", type="primary", key="save_workouts_btn_m"):
-            workouts = dict(st.session_state.workouts)
-            week_key = week_start.isoformat()
-            workouts[week_key] = {
-                "workout_1": {"title": w1_title or "Workout 1", "description": w1_desc or ""},
-                "workout_2": {"title": w2_title or "Workout 2", "description": w2_desc or ""},
-                "workout_3": {"title": w3_title or "Workout 3", "description": w3_desc or ""},
-            }
-            if save_workouts(workouts):
-                st.session_state.workouts = workouts
-                st.success("Workouts saved for this week.")
-                st.rerun()
-            else:
-                st.error("Could not save. Check connection or GitHub token.")
-        st.markdown("---")
 
     now = time.time()
     if st.session_state.save_feedback_until and now < st.session_state.save_feedback_until:

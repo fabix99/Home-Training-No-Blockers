@@ -41,7 +41,7 @@ After that, every checkbox toggle reads `data/completions.json` from the repo vi
 ## Data files
 
 - **data/players.json** – Fixed list of player names (one row per player in the calendar).
-- **data/workouts.json** – Workouts per week (used by the Begum/Fabio editor only). The **Workout of the week** shown in the app is fetched from a Google Doc (see below).
+- **data/workouts.json** – Not used by the app. The **Workout of the week** shown in the app is fetched from a Google Doc (see below).
 - **data/completions.json** – Who completed which day (`YYYY-MM-DD` → list of player names). Updated when someone checks the box.
 
 Edit `players.json` in the repo (or in `data/`).
@@ -72,9 +72,4 @@ The app **requires a link** to open. Without a token in the URL, users see only 
 
 Regenerating tokens (run the script again) overwrites both files; old links stop working.
 
-## Edit workouts (URL-based)
 
-Editing the three workouts **for the current week only** is allowed only when the app is opened via **Begum’s** or **Fabio’s** private URL (the link that contains their `?token=...`). No password is used.
-
-1. Open the app using Begum’s or Fabio’s personal link (from `docs/player_links.md` or the link shared with you).
-2. An **Edit workouts (this week only)** section appears at the bottom: change titles and descriptions for Workout 1, 2, 3, then click **Save workouts for this week**. Data is written to `data/workouts.json` in the repo (or locally if no GitHub).
