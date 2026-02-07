@@ -109,8 +109,9 @@ def load_workouts() -> dict:
 
 USEFUL_INFO_DOC_URL = "https://docs.google.com/document/d/1m-3EW-5I0-B03iaDi8KEFfrfxn30Bp0h/edit?usp=sharing"
 
-# Workout of the week: fetched from this Google Doc (export as plain text). Content is taken from section "Workout of the week" until "Exercise Pool".
+# Workout of the week: fetched from this Google Doc. HTML export preserves links; we fall back to TXT.
 WORKOUT_DOC_ID = "17zFCgNEfgNndKi19xvXNbk7ebg2HrV3DYUOV282aZ64"
+WORKOUT_DOC_EXPORT_HTML = f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/export?format=html"
 WORKOUT_DOC_EXPORT_URL = f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/export?format=txt"
 
 # Editing workouts is allowed only when opened via these players' private URLs (?token=).
@@ -149,6 +150,35 @@ def _parse_workout_of_the_week_section(text: str) -> str:
     return rest.strip()
 
 
+def _html_links_to_markdown(html_str: str) -> str:
+    """Convert <a href="url">text</a> to [text](url); strip other tags; normalize whitespace."""
+    # Convert <a href="...">...</a> or <a href='...'>...</a> to [text](url); inner text may contain tags
+    def replace_a(match: re.Match) -> str:
+        url = match.group(1).strip().replace("&amp;", "&")
+        inner = match.group(2)
+        text = re.sub(r"<[^>]+>", "", inner)
+        text = text.replace("&nbsp;", " ").replace("&amp;", "&").strip()
+        return f"[{text}]({url})" if text else f"[{url}]({url})"
+
+    for pattern in (r'<a\s+href="([^"]+)"[^>]*>([\s\S]*?)</a>', r"<a\s+href='([^']+)'[^>]*>([\s\S]*?)</a>"):
+        html_str = re.sub(pattern, replace_a, html_str, flags=re.IGNORECASE)
+    # Strip remaining tags; replace block elements with newlines
+    html_str = re.sub(r"</(?:p|div|br|tr|li)\s*>", "\n", html_str, flags=re.IGNORECASE)
+    html_str = re.sub(r"<br\s*/?>", "\n", html_str, flags=re.IGNORECASE)
+    html_str = re.sub(r"<[^>]+>", "", html_str)
+    html_str = re.sub(r"\n{3,}", "\n\n", html_str)
+    return html_str.strip()
+
+
+def _parse_workout_section_from_html(html_raw: str) -> Optional[str]:
+    """Extract 'Workout of the week' section from HTML and return markdown with links preserved."""
+    if not html_raw or "workout of the week" not in html_raw.lower():
+        return None
+    # First convert links to markdown, then strip tags
+    with_links = _html_links_to_markdown(html_raw)
+    return _parse_workout_of_the_week_section(with_links)
+
+
 def fetch_workout_of_the_week() -> Tuple[Optional[str], Optional[str]]:
     """
     Fetch the Google Doc and return the "Workout of the week" section.
@@ -167,15 +197,23 @@ def fetch_workout_of_the_week() -> Tuple[Optional[str], Optional[str]]:
     content = None
     err_msg = None
     try:
-        req = Request(WORKOUT_DOC_EXPORT_URL, headers={"User-Agent": "HomeTrainingNoBlockers/1.0"})
-        with urlopen(req, timeout=10) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
-        parsed = _parse_workout_of_the_week_section(raw)
-        if not parsed:
+        # Try HTML first so links (e.g. Physitrack, YouTube) are preserved; TXT export strips URLs.
+        for export_url, is_html in [(WORKOUT_DOC_EXPORT_HTML, True), (WORKOUT_DOC_EXPORT_URL, False)]:
+            try:
+                req = Request(export_url, headers={"User-Agent": "HomeTrainingNoBlockers/1.0"})
+                with urlopen(req, timeout=10) as resp:
+                    raw = resp.read().decode("utf-8", errors="replace")
+                if is_html:
+                    parsed = _parse_workout_section_from_html(raw)
+                else:
+                    parsed = _parse_workout_of_the_week_section(raw)
+                if parsed:
+                    content = parsed
+                    break
+            except (URLError, HTTPError, OSError):
+                continue
+        if not content:
             err_msg = "Could not find 'Workout of the week' section in the document."
-            content = None
-        else:
-            content = parsed
     except (URLError, HTTPError, OSError) as e:
         err_msg = f"Could not load workout: {e}"
     st.session_state[cache_key] = (now, content, err_msg)
@@ -196,13 +234,29 @@ def _linkify(text: str) -> str:
     return re.sub(r"https?://\S+", replace_url, text)
 
 
-def _is_youtube_url(s: str) -> bool:
-    """True if s is (or is only) a YouTube watch or youtu.be URL."""
+# YouTube: match watch?v=ID or youtu.be/ID; capture full URL for extraction.
+_YOUTUBE_URL_PATTERN = re.compile(
+    r"https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([\w\-]{11})(?:[^\s]*)?",
+    re.IGNORECASE,
+)
+
+
+def _extract_youtube_urls(text: str) -> List[str]:
+    """Return list of canonical YouTube watch URLs (https://www.youtube.com/watch?v=ID) found in text."""
+    urls = []
+    for m in _YOUTUBE_URL_PATTERN.finditer(text):
+        video_id = m.group(1)
+        urls.append(f"https://www.youtube.com/watch?v={video_id}")
+    return urls
+
+
+def _is_youtube_only_line(s: str) -> bool:
+    """True if the line is only a YouTube URL (possibly with surrounding whitespace)."""
     s = s.strip()
     if not s:
         return False
-    pattern = r"^(?:https?://)?(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[\w\-]+"
-    return bool(re.match(pattern, s, re.IGNORECASE))
+    m = _YOUTUBE_URL_PATTERN.match(s)
+    return m is not None and m.end() == len(s)
 
 
 def render_workout_content(content: str) -> None:
@@ -218,8 +272,20 @@ def render_workout_content(content: str) -> None:
         if not stripped:
             st.markdown("")
             continue
-        if _is_youtube_url(stripped):
-            st.video(stripped)
+        # Embed any YouTube URLs found in this line (works for "Video: https://..." or a lone URL)
+        youtube_urls = _extract_youtube_urls(stripped)
+        seen = set()
+        for url in youtube_urls:
+            if url not in seen:
+                seen.add(url)
+                st.markdown(f"[▶ {url}]({url})")
+                st.video(url)
+        # If the whole line was just a YouTube URL, we already embedded it; skip duplicate link
+        if _is_youtube_only_line(stripped) and youtube_urls:
+            continue
+        # Show the line: if it already has markdown links (from HTML export), don't linkify
+        if "](http" in line or "](https" in line:
+            st.markdown(line)
         else:
             st.markdown(_linkify(line))
 
@@ -556,6 +622,17 @@ def main():
         st.markdown("---")
         st.markdown("**Welcome to the main page!**")
         st.markdown("To access your data, use the link that was shared individually with you. If you don't have it, ask Fabio, and save it for next time!")
+        st.markdown("")
+        st.markdown("But while you're here, here is the **workout of the week**:")
+        if st.button("🔄 Refresh", key="refresh_workout_no_token", help="Reload from Google Doc"):
+            st.session_state.pop("workout_of_the_week_cache", None)
+            st.rerun()
+        workout_content, workout_error = fetch_workout_of_the_week()
+        if workout_error:
+            st.warning(workout_error)
+            st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
+        elif workout_content:
+            render_workout_content(workout_content)
         return
 
     week_start = st.session_state.week_start
@@ -652,6 +729,9 @@ def main():
     # 3. Workout of the week – fetched from Google Doc
     workout_content, workout_error = fetch_workout_of_the_week()
     with st.popover("Workout of the week", use_container_width=True):
+        if st.button("🔄 Refresh", key="refresh_workout", help="Reload from Google Doc"):
+            st.session_state.pop("workout_of_the_week_cache", None)
+            st.rerun()
         if workout_error:
             st.warning(workout_error)
             st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")

@@ -142,6 +142,17 @@ def main():
         st.markdown("---")
         st.markdown("**Welcome to the main page!**")
         st.markdown("To access your data, use the link that was shared individually with you. If you don't have it, ask Fabio, and save it for next time!")
+        st.markdown("")
+        st.markdown("But while you're here, here is the **workout of the week**:")
+        if st.button("🔄 Refresh", key="refresh_workout_no_token_m", help="Reload from Google Doc"):
+            st.session_state.pop("workout_of_the_week_cache", None)
+            st.rerun()
+        workout_content, workout_error = fetch_workout_of_the_week()
+        if workout_error:
+            st.warning(workout_error)
+            st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
+        elif workout_content:
+            render_workout_content(workout_content)
         return
 
     week_start = st.session_state.week_start
@@ -236,6 +247,9 @@ def main():
     # 4. Workout of the week – fetched from Google Doc
     workout_content, workout_error = fetch_workout_of_the_week()
     with st.popover("Workout of the week", use_container_width=True):
+        if st.button("🔄 Refresh", key="refresh_workout_m", help="Reload from Google Doc"):
+            st.session_state.pop("workout_of_the_week_cache", None)
+            st.rerun()
         if workout_error:
             st.warning(workout_error)
             st.link_button("Open workout document", f"https://docs.google.com/document/d/{WORKOUT_DOC_ID}/edit", type="secondary")
