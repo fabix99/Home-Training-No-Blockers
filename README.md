@@ -59,14 +59,13 @@ The app **requires a link** to open. Without a token in the URL, users see only 
    python generate_player_tokens.py https://your-app.onstreamlit.app
    ```
    This creates:
-   - **data/player_tokens.json** – one token per player (private view).
-   - **data/full_view_token.txt** – one token for the “see everyone” view (player selector, team stats, star of the week).
+   - **data/tokens.json** – full URLs: `base_url`, `full_view_url`, and `players` (name → full URL). One file for both full view and per-player links.
 
 2. Share links:
    - **Full view** – Share only with coach/admin. Opens the full app (everyone’s data, player dropdown, star of the week).
    - **Per-player links** – Share each only with that player. They see only their name and their progress.
 
-3. Commit and push **data/player_tokens.json** and **data/full_view_token.txt** so the deployed app can read them.
+3. Commit and push **data/tokens.json** so the deployed app can read it.
 
 4. If someone removes the token from the URL, they only see the “use your link” page; they cannot reach the full view without the full-view token.
 

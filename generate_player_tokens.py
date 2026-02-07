@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 """
-Generate unique secret tokens per player and one for the full view (everyone).
-Run once, then share each link only with that player; share the full-view link only with people who may see everyone.
+Use existing tokens to build the links document. Tokens are never overwritten
+once they exist, so shared links stay valid.
 
 Usage:
   python generate_player_tokens.py [BASE_URL]
 
-  BASE_URL = base URL of your app (e.g. https://your-app.onstreamlit.app or http://localhost:8501)
-  If omitted, prints URLs with a placeholder you can replace.
+  BASE_URL = base URL of your app (default: https://home-training-no-blockers-mobile.streamlit.app)
+  If omitted, uses the default. All links in tokens.json are stored as full URLs.
 
-Output:
-  - Overwrites data/player_tokens.json (token -> player name).
-  - Overwrites data/full_view_token.txt (single token for the "see everyone" view).
-  - Prints the full-view URL and one private URL per player.
+Behaviour:
+  - Single file: data/tokens.json with base_url, full_view_url, and players (name -> full URL).
+  - If data/tokens.json EXISTS: read it, update docs/player_links.md (and print links). Tokens are NOT changed.
+  - If data/tokens.json does NOT exist: if data/player_tokens.json and data/full_view_token.txt exist,
+    migrate them into tokens.json with full URLs; otherwise generate new tokens and write tokens.json.
 """
 
 from __future__ import annotations
@@ -23,15 +24,31 @@ import sys
 from pathlib import Path
 
 DATA_DIR = Path(__file__).parent / "data"
+DOCS_DIR = Path(__file__).parent / "docs"
 PLAYERS_FILE = DATA_DIR / "players.json"
-TOKENS_FILE = DATA_DIR / "player_tokens.json"
-FULL_VIEW_TOKEN_FILE = DATA_DIR / "full_view_token.txt"
+TOKENS_FILE = DATA_DIR / "tokens.json"
+OLD_PLAYER_TOKENS_FILE = DATA_DIR / "player_tokens.json"
+OLD_FULL_VIEW_TOKEN_FILE = DATA_DIR / "full_view_token.txt"
+LINKS_DOC = DOCS_DIR / "player_links.md"
+
+DEFAULT_BASE_URL = "https://home-training-no-blockers-mobile.streamlit.app"
+
+
+def _token_from_url(url: str) -> str | None:
+    """Extract ?token= value from a full URL."""
+    if not url or "?" not in url:
+        return None
+    query = url.split("?", 1)[1]
+    for part in query.split("&"):
+        if part.startswith("token="):
+            return part[6:].strip()
+    return None
 
 
 def main() -> None:
-    base_url = (sys.argv[1] or "").rstrip("/").strip()
+    base_url = (sys.argv[1] if len(sys.argv) > 1 else "").rstrip("/").strip() or DEFAULT_BASE_URL
     if not base_url:
-        base_url = "https://YOUR-APP-URL-HERE"
+        base_url = DEFAULT_BASE_URL
 
     if not PLAYERS_FILE.exists():
         print(f"Error: {PLAYERS_FILE} not found. Add players first.")
@@ -43,35 +60,82 @@ def main() -> None:
         print("Error: players.json must be a non-empty list of names.")
         sys.exit(1)
 
-    token_to_player = {}
-    for name in players:
-        token = secrets.token_urlsafe(16)
-        token_to_player[token] = name
+    if TOKENS_FILE.exists():
+        with open(TOKENS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        base_url = data.get("base_url", base_url)
+        full_view_url = data.get("full_view_url", "")
+        players_urls = data.get("players", {})
+        player_order = [p for p in players if p in players_urls]
+        extra = [p for p in players_urls if p not in players]
+        if extra:
+            player_order = player_order + sorted(extra)
+    else:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        if OLD_PLAYER_TOKENS_FILE.exists() and OLD_FULL_VIEW_TOKEN_FILE.exists():
+            with open(OLD_PLAYER_TOKENS_FILE, encoding="utf-8") as f:
+                token_to_player = json.load(f)
+            with open(OLD_FULL_VIEW_TOKEN_FILE, encoding="utf-8") as f:
+                full_view_token = f.read().strip()
+            full_view_url = f"{base_url}/?token={full_view_token}"
+            players_urls = {
+                name: f"{base_url}/?token={token}"
+                for token, name in token_to_player.items()
+            }
+            player_order = list(players_urls.keys())
+            print("Migrated from player_tokens.json + full_view_token.txt into tokens.json (full URLs).")
+        else:
+            token_to_player = {}
+            for name in players:
+                token_to_player[name] = f"{base_url}/?token={secrets.token_urlsafe(16)}"
+            full_view_url = f"{base_url}/?token={secrets.token_urlsafe(16)}"
+            players_urls = token_to_player
+            player_order = list(players)
+            print("First-time: wrote data/tokens.json (full URLs). Tokens will not be overwritten.")
+        data = {
+            "base_url": base_url,
+            "full_view_url": full_view_url,
+            "players": players_urls,
+        }
+        with open(TOKENS_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
 
-    full_view_token = secrets.token_urlsafe(16)
+    lines = [
+        "# Player links – Home Training Tracker",
+        "",
+        "Generated by `python generate_player_tokens.py [BASE_URL]`. Links are full URLs.",
+        "",
+        "## Full view (everyone)",
+        "Share only with coach/admin.",
+        "",
+        f"- {full_view_url}",
+        "",
+        "## Private links (one per player)",
+        "",
+        "| Player | Link |",
+        "|--------|------|",
+    ]
+    for name in player_order:
+        url = players_urls.get(name)
+        if not url:
+            continue
+        lines.append(f"| {name} | {url} |")
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    with open(LINKS_DOC, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    print(f"Written {LINKS_DOC}")
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with open(TOKENS_FILE, "w", encoding="utf-8") as f:
-        json.dump(token_to_player, f, indent=2)
-    with open(FULL_VIEW_TOKEN_FILE, "w", encoding="utf-8") as f:
-        f.write(full_view_token)
-
-    print("Generated data/player_tokens.json and data/full_view_token.txt")
     print()
-    full_view_url = f"{base_url}/?token={full_view_token}"
     print("Full view (everyone) – share only with coach/admin:")
     print(f"  {full_view_url}")
     print()
     print("Private links (share each only with that player):")
     print("-" * 60)
-    for name in players:
-        token = next(t for t, p in token_to_player.items() if p == name)
-        url = f"{base_url}/?token={token}"
-        print(f"  {name}: {url}")
+    for name in player_order:
+        url = players_urls.get(name)
+        if url:
+            print(f"  {name}: {url}")
     print("-" * 60)
-    if "YOUR-APP-URL" in base_url:
-        print("Replace BASE_URL with your real app URL and run again to re-print links,")
-        print("or share links after replacing the base in the URLs above.")
 
 
 if __name__ == "__main__":

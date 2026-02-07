@@ -14,7 +14,7 @@ import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
@@ -52,7 +52,7 @@ def read_json_from_github(repo, path: str) -> Union[dict, list]:
         return json.loads(f.decoded_content.decode())
     except Exception as e:
         st.warning(f"Could not read {path} from GitHub: {e}")
-        return {} if "completions" in path or "workouts" in path else []
+        return {} if ("completions" in path or "workouts" in path or "tokens" in path) else []
 
 
 def read_text_from_github(repo, path: str) -> Optional[str]:
@@ -313,23 +313,70 @@ def load_completions() -> dict:
     return _load_data("data/completions.json", "completions.json", {})
 
 
+def _token_from_url(url: str) -> Optional[str]:
+    """Extract ?token= value from a full URL."""
+    if not url or "?" not in url:
+        return None
+    qs = parse_qs(urlparse(url).query)
+    vals = qs.get("token", [None])
+    return (vals[0] or "").strip() or None
+
+
+def _parse_tokens_json(data: Union[dict, list]) -> Tuple[dict, Optional[str]]:
+    """Parse combined tokens.json: return (token_to_player, full_view_token)."""
+    if not isinstance(data, dict):
+        return ({}, None)
+    full_view_url = data.get("full_view_url") or ""
+    players = data.get("players") or {}
+    full_view_token = _token_from_url(full_view_url)
+    token_to_player = {}
+    for name, url in players.items():
+        t = _token_from_url(url)
+        if t:
+            token_to_player[t] = name
+    return (token_to_player, full_view_token)
+
+
+_tokens_cache: Optional[Tuple[dict, Optional[str]]] = None
+
+
+def _load_old_tokens() -> Tuple[dict, Optional[str]]:
+    """Load old player_tokens.json + full_view_token.txt; return (token_to_player, full_view_token)."""
+    token_to_player = _load_data("data/player_tokens.json", "player_tokens.json", {})
+    if not isinstance(token_to_player, dict):
+        return ({}, None)
+    repo = get_github_repo()
+    full_view_token = None
+    if repo:
+        full_view_token = read_text_from_github(repo, "data/full_view_token.txt")
+    if not full_view_token:
+        path = DATA_DIR / "full_view_token.txt"
+        if path.exists():
+            with open(path, encoding="utf-8") as f:
+                full_view_token = f.read().strip() or None
+    return (token_to_player, full_view_token)
+
+
+def _load_tokens_data() -> Tuple[dict, Optional[str]]:
+    """Load data/tokens.json once and return (token_to_player, full_view_token). Fall back to old files if missing."""
+    global _tokens_cache
+    if _tokens_cache is not None:
+        return _tokens_cache
+    raw = _load_data("data/tokens.json", "tokens.json", {})
+    _tokens_cache = _parse_tokens_json(raw)
+    if not _tokens_cache[0] and not _tokens_cache[1]:
+        _tokens_cache = _load_old_tokens()
+    return _tokens_cache
+
+
 def load_player_tokens() -> dict:
-    """Load mapping { token: player_name } from GitHub or local. Used for private per-player URLs."""
-    return _load_data("data/player_tokens.json", "player_tokens.json", {})
+    """Load mapping { token: player_name } from combined data/tokens.json (full URLs)."""
+    return _load_tokens_data()[0]
 
 
 def load_full_view_token() -> Optional[str]:
-    """Load the token that grants access to the full view (everyone). From data/full_view_token.txt."""
-    repo = get_github_repo()
-    if repo:
-        s = read_text_from_github(repo, "data/full_view_token.txt")
-        if s:
-            return s
-    path = DATA_DIR / "full_view_token.txt"
-    if path.exists():
-        with open(path, encoding="utf-8") as f:
-            return f.read().strip() or None
-    return None
+    """Load the full-view token from combined data/tokens.json (full_view_url)."""
+    return _load_tokens_data()[1]
 
 
 def save_completions(completions: dict) -> bool:
