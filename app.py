@@ -11,7 +11,7 @@ import os
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Union
+from typing import List, Optional, Tuple, Union
 from urllib.parse import quote
 
 import streamlit as st
@@ -48,7 +48,7 @@ def read_json_from_github(repo, path: str) -> Union[dict, list]:
         return {} if "completions" in path or "workouts" in path else []
 
 
-def read_text_from_github(repo, path: str) -> str | None:
+def read_text_from_github(repo, path: str) -> Optional[str]:
     """Read a text file from the repo. Returns content as string or None."""
     try:
         f = repo.get_contents(path)
@@ -139,7 +139,7 @@ def load_player_tokens() -> dict:
     return _load_data("data/player_tokens.json", "player_tokens.json", {})
 
 
-def load_full_view_token() -> str | None:
+def load_full_view_token() -> Optional[str]:
     """Load the token that grants access to the full view (everyone). From data/full_view_token.txt."""
     repo = get_github_repo()
     if repo:
@@ -231,7 +231,7 @@ def count_player_week_completions(week_start: date, player: str) -> int:
     return sum(1 for d in days if player in comp.get(d.isoformat(), []))
 
 
-def get_star_of_the_week(week_start: date) -> tuple[list[str], int] | None:
+def get_star_of_the_week(week_start: date) -> Optional[Tuple[List[str], int]]:
     """Player(s) with the most completions this week. Returns (names, count) or None if no completions."""
     players = st.session_state.players or []
     if not players:
@@ -259,7 +259,7 @@ def render_empty_players():
     """, unsafe_allow_html=True)
 
 
-def _day_header_subtitle(d: date) -> str | None:
+def _day_header_subtitle(d: date) -> Optional[str]:
     """Subtitle for day header: (NB Training) on Mon/Thu, (NB Match) on Fri."""
     w = d.weekday()  # 0=Mon, 3=Thu, 4=Fri
     if w in (0, 3):
