@@ -693,15 +693,15 @@ def main():
         if st.sidebar.button("← Prev", use_container_width=True):
             new_week = _monday_of_week(week_start - timedelta(days=7))
             st.session_state.week_start = new_week
-            st.session_state["jump"] = new_week
             st.rerun()
     with col_next:
         if st.sidebar.button("Next →", use_container_width=True):
             new_week = _monday_of_week(week_start + timedelta(days=7))
             st.session_state.week_start = new_week
-            st.session_state["jump"] = new_week
             st.rerun()
 
+    # Sync date_input to current week before creating widget (avoids "cannot modify after instantiated")
+    st.session_state["jump"] = week_start
     jump_to = st.sidebar.date_input(
         "Jump to week",
         value=week_start,
@@ -784,12 +784,10 @@ def main():
     with sw_col1:
         if st.button("← Prev week", key="prev_week", use_container_width=True):
             st.session_state.week_start = prev_week
-            st.session_state["jump"] = prev_week  # keep sidebar date_input in sync
             st.rerun()
     with sw_col2:
         if st.button("Next week →", key="next_week", use_container_width=True):
             st.session_state.week_start = next_week
-            st.session_state["jump"] = next_week  # keep sidebar date_input in sync
             st.rerun()
 
     st.markdown("---")
