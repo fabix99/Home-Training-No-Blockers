@@ -1,7 +1,7 @@
 """
-Home Training Tracker – mobile-friendly Streamlit entry point.
-Same app as app.py but with initial_sidebar_state="auto" and responsive CSS for small screens.
-Run with: streamlit run mobile-app.py
+Home Training Tracker – mobile-friendly Streamlit app (single entry point).
+Uses core.py for logic; initial_sidebar_state="auto" and responsive CSS for small screens.
+Run: streamlit run mobile-app.py
 """
 
 from __future__ import annotations
@@ -9,12 +9,12 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Ensure project root is on path so "app" and "app.ui" resolve (Streamlit Cloud runs main file from repo root)
+# Ensure project root is on path so "core" and "ui" resolve (Streamlit Cloud runs main file from repo root)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import streamlit as st
 
-from app import (
+from core import (
     WORKOUT_DOC_ID,
     _ensure_selected_player,
     _handle_toggle_param,
@@ -27,6 +27,7 @@ from app import (
     get_useful_info_doc_url,
     init_session_state,
     render_calendar_grid,
+    render_participation_stats,
     render_player_selector,
     render_workout_content,
     save_completions,
@@ -226,12 +227,17 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 1. Select your name
+    # 1. Select your name (or "Overview – all players")
     render_player_selector()
     if not st.session_state.players:
         return
 
-    # 2. Days of the week + checkboxes (calendar)
+    # 2. Participation stats (per day, per player, team; optional player filter)
+    render_participation_stats(week_start)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. Days of the week + checkboxes (calendar)
     st.caption("Swipe for all 7 days")
     render_calendar_grid(week_start, today)
 

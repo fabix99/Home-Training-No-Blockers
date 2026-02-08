@@ -366,6 +366,28 @@ section.main .stButton > button:hover {
     border-color: #050d76 !important;
 }
 
+/* Statistics section – clean card */
+.stats-section {
+    margin: 1.5rem 0 0.5rem 0;
+    padding: 0;
+}
+.stats-section-header {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #050d76;
+    letter-spacing: 0.02em;
+    padding: 0.75rem 0 0.25rem 0;
+    border-bottom: 2px solid rgba(5, 13, 118, 0.2);
+    margin-bottom: 0.5rem;
+}
+/* Multiselect in stats: match theme */
+section.main [data-testid="stMultiSelect"] label {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    color: #2C3E50;
+}
+
 /* Empty state */
 .empty-state {
     text-align: center;

@@ -6,10 +6,10 @@ Streamlit app for your volleyball club: calendar view where each player can mark
 
 ```bash
 pip install -r requirements.txt
-streamlit run app.py
+streamlit run mobile-app.py
 ```
 
-**Mobile-friendly version:** Run `streamlit run mobile-app.py` for a layout tuned for small screens (sidebar collapsed by default, week switcher in main area, touch-friendly calendar). The "Deploy" label in the top bar is Streamlit’s default when running locally and is not shown when deployed to Streamlit Cloud.
+The app is mobile-first (sidebar auto-collapsed, touch-friendly calendar, responsive layout). All logic in `core.py`; entry point is `mobile-app.py`.
 
 - **Without GitHub:** The app reads and writes `data/players.json`, `data/workouts.json`, and `data/completions.json` from the `data/` folder. Edit those files to add players and workouts.
 - **With GitHub:** Create `.streamlit/secrets.toml` (see below) so the app reads/writes the same files in the GitHub repo.
@@ -48,7 +48,7 @@ Edit `players.json` in the repo (or in `data/`).
 
 ## Workout of the week (Google Doc)
 
-The app shows a single **Workout of the week** button. The content is fetched automatically from a Google Doc: the section between **"Workout of the week"** and **"Exercise Pool"** or **"End of List"** is displayed. The doc URL is set in `app.py` (`WORKOUT_DOC_ID`). For the export to work without login, the doc must be shared so **Anyone with the link can view** (or **Published to web**). If the fetch fails, the app shows a message and a link to open the document.
+The app shows a single **Workout of the week** button. The content is fetched automatically from a Google Doc: the section between **"Workout of the week"** and **"Exercise Pool"** or **"End of List"** is displayed. The doc URL is set in `core.py` (`WORKOUT_DOC_ID`). For the export to work without login, the doc must be shared so **Anyone with the link can view** (or **Published to web**). If the fetch fails, the app shows a message and a link to open the document.
 
 ## Private links (confidentiality)
 

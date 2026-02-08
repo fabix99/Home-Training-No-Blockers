@@ -479,88 +479,131 @@ def get_star_of_the_week(week_start: date) -> Optional[Tuple[List[str], int]]:
     return (stars, max_count)
 
 
-def get_participation_per_day(week_start: date) -> List[float]:
-    """Participation % per day (0–100). Index 0 = Mon, ..., 6 = Sun."""
+def get_participation_per_day(week_start: date, include_players: Optional[List[str]] = None) -> List[float]:
+    """Participation % per day (0–100). Index 0 = Mon, ..., 6 = Sun. If include_players is set, only those players count."""
     players = st.session_state.players or []
-    n = len(players)
+    subset = (include_players if include_players is not None else players)
+    n = len(subset)
     if n == 0:
         return [0.0] * 7
     comp = st.session_state.completions
     days = get_week_days(week_start)
-    return [(100.0 * len(comp.get(d.isoformat(), [])) / n) for d in days]
+    result = []
+    for d in days:
+        on_day = comp.get(d.isoformat(), [])
+        count = sum(1 for p in on_day if p in subset)
+        result.append(100.0 * count / n)
+    return result
 
 
-def get_participation_per_player(week_start: date) -> dict:
-    """Participation % per player for the week (0–100). Key = player name."""
+def get_participation_per_player(week_start: date, include_players: Optional[List[str]] = None) -> dict:
+    """Participation % per player for the week (0–100). If include_players is set, only those players are included."""
     players = st.session_state.players or []
-    if not players:
+    subset = (include_players if include_players is not None else players)
+    if not subset:
         return {}
     days = get_week_days(week_start)
     comp = st.session_state.completions
     result = {}
-    for player in players:
+    for player in subset:
         count = sum(1 for d in days if player in comp.get(d.isoformat(), []))
         result[player] = (100.0 * count / 7) if count else 0.0
     return result
 
 
-def get_participation_overall(week_start: date) -> float:
-    """Overall team participation % for the week (0–100)."""
+def get_participation_overall(week_start: date, include_players: Optional[List[str]] = None) -> float:
+    """Overall team participation % for the week (0–100). If include_players is set, only those players count."""
     players = st.session_state.players or []
-    if not players:
+    subset = (include_players if include_players is not None else players)
+    if not subset:
         return 0.0
-    total_slots = len(players) * 7
-    total = count_week_completions(week_start)
+    total_slots = len(subset) * 7
+    comp = st.session_state.completions
+    days = get_week_days(week_start)
+    total = sum(
+        sum(1 for p in comp.get(d.isoformat(), []) if p in subset)
+        for d in days
+    )
     return (100.0 * total / total_slots) if total_slots else 0.0
 
 
 def render_participation_stats(week_start: date):
-    """Render participation %: per day, per player (overview) or current player, and overall team."""
+    """Render participation %: per day, per player (overview) or current player, and overall team. Optional player filter."""
     players = st.session_state.players
     if not players:
         return
     days = get_week_days(week_start)
     today = date.today()
-    per_day = get_participation_per_day(week_start)
-    per_player = get_participation_per_player(week_start)
-    overall = get_participation_overall(week_start)
     show_all = st.session_state.get("full_view_by_token")
 
-    st.markdown("---")
-    st.subheader("📈 Participation this week")
+    # Filter: exclude selected players from statistics
+    excluded = st.session_state.get("stats_exclude_players") or []
+    include_players = [p for p in players if p not in excluded]
+    if not include_players:
+        include_players = list(players)  # fallback: show all if everyone excluded
 
-    # 1) Per day: one metric per day
-    st.markdown("**By day** (share of players who logged that day)")
-    day_cols = st.columns(7)
-    for i, (d, pct) in enumerate(zip(days, per_day)):
-        with day_cols[i]:
-            label = d.strftime("%a")
-            if d == today:
-                label += " (today)"
-            st.metric(label, f"{pct:.0f}%", None)
-    st.markdown("")
+    per_day = get_participation_per_day(week_start, include_players)
+    per_player = get_participation_per_player(week_start, include_players)
+    overall = get_participation_overall(week_start, include_players)
 
-    # 2) Per player: all players in overview, or just current player
-    if show_all:
-        st.markdown("**By player** (share of days logged this week)")
-        with st.expander("See participation per player", expanded=True):
-            n_cols = 6
-            for start in range(0, len(players), n_cols):
-                row_players = players[start : start + n_cols]
-                row_cols = st.columns(len(row_players))
-                for col, player in zip(row_cols, row_players):
-                    with col:
-                        pct = per_player.get(player, 0.0)
-                        st.metric(player, f"{pct:.0f}%", None)
-    else:
-        p = st.session_state.selected_player
-        pct = per_player.get(p, 0.0)
-        st.markdown(f"**Your week:** {pct:.0f}% ({count_player_week_completions(week_start, p)}/7 days)")
-    st.markdown("")
+    # Clean section container
+    with st.container():
+        st.markdown(
+            '<div class="stats-section">'
+            '<div class="stats-section-header">📈 Participation this week</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("")
 
-    # 3) Overall team
-    st.markdown("**Team overall** (all days, all players)")
-    st.metric("Participation", f"{overall:.0f}%", None)
+        # Multi-select to exclude players from stats (key persists selection)
+        excluded_selection = st.multiselect(
+            "Exclude from statistics",
+            options=players,
+            default=excluded,
+            key="stats_exclude_players",
+            help="Selected players are removed from all participation percentages (by day, by player, team overall).",
+        )
+        if excluded_selection:
+            st.caption(f"Excluding {len(excluded_selection)} player(s) from statistics.")
+        st.markdown("")
+
+        # 1) Per day
+        st.markdown("**By day** — share of (included) players who logged that day")
+        day_cols = st.columns(7)
+        for i, (d, pct) in enumerate(zip(days, per_day)):
+            with day_cols[i]:
+                label = d.strftime("%a")
+                if d == today:
+                    label += " (today)"
+                st.metric(label, f"{pct:.0f}%", None)
+        st.markdown("")
+
+        # 2) Per player
+        if show_all:
+            st.markdown("**By player** — share of days logged this week (included players only)")
+            with st.expander("See participation per player", expanded=True):
+                n_cols = 6
+                for start in range(0, len(include_players), n_cols):
+                    row_players = include_players[start : start + n_cols]
+                    row_cols = st.columns(len(row_players))
+                    for col, player in zip(row_cols, row_players):
+                        with col:
+                            pct = per_player.get(player, 0.0)
+                            st.metric(player, f"{pct:.0f}%", None)
+        else:
+            p = st.session_state.selected_player
+            if p in include_players:
+                pct = per_player.get(p, 0.0)
+                st.markdown(f"**Your week:** {pct:.0f}% ({count_player_week_completions(week_start, p)}/7 days)")
+            else:
+                st.caption("You are excluded from the current filter.")
+        st.markdown("")
+
+        # 3) Overall team
+        st.markdown("**Team overall** — all days, included players only")
+        st.metric("Participation", f"{overall:.0f}%", None)
+        st.markdown("")
 
 
 def render_empty_players():
@@ -873,20 +916,23 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 1. Select your name
+    # 1. Select your name (or "Overview – all players")
     render_player_selector()
     players = st.session_state.players
     if not players:
         return
 
-    # 2. Days of the week + checkboxes (calendar)
-    render_calendar_grid(week_start, today)
-
+    # 2. Participation stats (visible above the fold, before the calendar)
     render_participation_stats(week_start)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. Workout of the week – fetched from Google Doc
+    # 3. Days of the week + checkboxes (calendar)
+    render_calendar_grid(week_start, today)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 5. Workout of the week – fetched from Google Doc
     workout_content, workout_error = fetch_workout_of_the_week()
     with st.popover("Workout of the week", use_container_width=True):
         if workout_error:
@@ -895,10 +941,10 @@ def main():
         elif workout_content:
             render_workout_content(workout_content)
 
-    # 4. Useful Information
+    # 6. Useful Information
     st.link_button("📄 Useful Information", get_useful_info_doc_url(), type="secondary", use_container_width=True)
 
-    # 5. Prev / Next week (at bottom)
+    # 7. Prev / Next week (at bottom)
     prev_week = _monday_of_week(week_start - timedelta(days=7))
     next_week = _monday_of_week(week_start + timedelta(days=7))
     sw_col1, sw_col2 = st.columns(2)
