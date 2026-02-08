@@ -528,7 +528,9 @@ def get_participation_overall(week_start: date, include_players: Optional[List[s
 
 
 def render_participation_stats(week_start: date):
-    """Render participation %: per day, per player (overview) or current player, and overall team. Optional player filter."""
+    """Render participation %: per day, per player (overview), and overall team. Only shown in full view, not per-player view."""
+    if not st.session_state.get("full_view_by_token"):
+        return
     players = st.session_state.players
     if not players:
         return
