@@ -107,7 +107,7 @@ def load_workouts() -> dict:
     return _load_data("data/workouts.json", "workouts.json", {})
 
 
-USEFUL_INFO_DOC_URL = "https://docs.google.com/document/d/1m-3EW-5I0-B03iaDi8KEFfrfxn30Bp0h/edit?usp=sharing"
+USEFUL_INFO_DOC_URL = "https://drive.google.com/drive/folders/1pK5m9qT5TCKhbp2R7WeH0_nWArWyniCv"
 
 # Workout of the week: fetched from this Google Doc. HTML export preserves links; we fall back to TXT.
 WORKOUT_DOC_ID = "17zFCgNEfgNndKi19xvXNbk7ebg2HrV3DYUOV282aZ64"
@@ -119,16 +119,16 @@ WORKOUT_FETCH_CACHE_TTL = 300
 
 
 def get_useful_info_doc_url() -> str:
-    """Return Google Docs URL for Useful Information."""
+    """Return Google Drive folder URL for Useful Information."""
     return USEFUL_INFO_DOC_URL
 
 
 def _parse_workout_of_the_week_section(text: str) -> str:
-    """Extract content under 'Workout of the week' until 'Exercise Pool' (or end). Case-insensitive."""
+    """Extract content under 'Workout of the week' until 'Exercise Pool' or 'End of List' (or end). Case-insensitive."""
     if not text or not text.strip():
         return ""
     start_marker = "workout of the week"
-    end_marker = "exercise pool"
+    end_markers = ("exercise pool", "end of list")
     lower = text.lower()
     start_idx = lower.find(start_marker)
     if start_idx == -1:
@@ -141,7 +141,12 @@ def _parse_workout_of_the_week_section(text: str) -> str:
     else:
         content_start = line_end + 1
         rest = text[content_start:].strip()
-    end_idx = rest.lower().find(end_marker)
+    rest_lower = rest.lower()
+    end_idx = -1
+    for marker in end_markers:
+        idx = rest_lower.find(marker)
+        if idx != -1 and (end_idx == -1 or idx < end_idx):
+            end_idx = idx
     if end_idx != -1:
         rest = rest[:end_idx].strip()
     return rest.strip()
@@ -474,6 +479,90 @@ def get_star_of_the_week(week_start: date) -> Optional[Tuple[List[str], int]]:
     return (stars, max_count)
 
 
+def get_participation_per_day(week_start: date) -> List[float]:
+    """Participation % per day (0–100). Index 0 = Mon, ..., 6 = Sun."""
+    players = st.session_state.players or []
+    n = len(players)
+    if n == 0:
+        return [0.0] * 7
+    comp = st.session_state.completions
+    days = get_week_days(week_start)
+    return [(100.0 * len(comp.get(d.isoformat(), [])) / n) for d in days]
+
+
+def get_participation_per_player(week_start: date) -> dict:
+    """Participation % per player for the week (0–100). Key = player name."""
+    players = st.session_state.players or []
+    if not players:
+        return {}
+    days = get_week_days(week_start)
+    comp = st.session_state.completions
+    result = {}
+    for player in players:
+        count = sum(1 for d in days if player in comp.get(d.isoformat(), []))
+        result[player] = (100.0 * count / 7) if count else 0.0
+    return result
+
+
+def get_participation_overall(week_start: date) -> float:
+    """Overall team participation % for the week (0–100)."""
+    players = st.session_state.players or []
+    if not players:
+        return 0.0
+    total_slots = len(players) * 7
+    total = count_week_completions(week_start)
+    return (100.0 * total / total_slots) if total_slots else 0.0
+
+
+def render_participation_stats(week_start: date):
+    """Render participation %: per day, per player (overview) or current player, and overall team."""
+    players = st.session_state.players
+    if not players:
+        return
+    days = get_week_days(week_start)
+    today = date.today()
+    per_day = get_participation_per_day(week_start)
+    per_player = get_participation_per_player(week_start)
+    overall = get_participation_overall(week_start)
+    show_all = st.session_state.get("full_view_by_token")
+
+    st.markdown("---")
+    st.subheader("📈 Participation this week")
+
+    # 1) Per day: one metric per day
+    st.markdown("**By day** (share of players who logged that day)")
+    day_cols = st.columns(7)
+    for i, (d, pct) in enumerate(zip(days, per_day)):
+        with day_cols[i]:
+            label = d.strftime("%a")
+            if d == today:
+                label += " (today)"
+            st.metric(label, f"{pct:.0f}%", None)
+    st.markdown("")
+
+    # 2) Per player: all players in overview, or just current player
+    if show_all:
+        st.markdown("**By player** (share of days logged this week)")
+        with st.expander("See participation per player", expanded=True):
+            n_cols = 6
+            for start in range(0, len(players), n_cols):
+                row_players = players[start : start + n_cols]
+                row_cols = st.columns(len(row_players))
+                for col, player in zip(row_cols, row_players):
+                    with col:
+                        pct = per_player.get(player, 0.0)
+                        st.metric(player, f"{pct:.0f}%", None)
+    else:
+        p = st.session_state.selected_player
+        pct = per_player.get(p, 0.0)
+        st.markdown(f"**Your week:** {pct:.0f}% ({count_player_week_completions(week_start, p)}/7 days)")
+    st.markdown("")
+
+    # 3) Overall team
+    st.markdown("**Team overall** (all days, all players)")
+    st.metric("Participation", f"{overall:.0f}%", None)
+
+
 def render_empty_players():
     """Phase 4: Empty state when no players."""
     st.markdown("""
@@ -536,12 +625,15 @@ def _ensure_selected_player():
 
 
 def render_player_selector():
-    """Player dropdown – or read-only label when opened via private link (?token=)."""
+    """Player dropdown – or read-only label when opened via private link (?token=). Overview (full-view) shows all players, no dropdown."""
     players = st.session_state.players
     if not players:
         render_empty_players()
         return
     _ensure_selected_player()
+    if st.session_state.get("full_view_by_token"):
+        st.markdown("**Overview – all players**")
+        return
     if st.session_state.get("player_locked_by_token"):
         st.markdown(f"**Logged in as:** {st.session_state.selected_player}")
         return
@@ -553,51 +645,78 @@ def render_player_selector():
     )
 
 
+def _day_header_html(d: date, today: date) -> str:
+    """Single day header HTML (for reuse in single-row and overview)."""
+    sub = _day_header_subtitle(d)
+    sub_html = f'<span class="calendar-header-day-subtitle">{sub}</span>' if sub else ''
+    cls = "calendar-header-cell calendar-header-day" + (" today" if d == today else "")
+    return (
+        f'<div class="{cls}">'
+        f'<span class="calendar-header-day-main">{d.strftime("%a")} {d.day}</span>'
+        f'{sub_html}'
+        f'</div>'
+    )
+
+
+def _player_day_cells(player: str, days: list, today: date) -> str:
+    """HTML for one player's 7 day cells (links to toggle completion)."""
+    token_suffix = f"&token={quote(st.session_state.player_url_token)}" if st.session_state.get("player_url_token") else ""
+    cells = []
+    for d in days:
+        date_key = d.isoformat()
+        is_today = d == today
+        is_done = completed(d, player)
+        cell_cls = "cell" + (" today" if is_today else "") + (" completed" if is_done else "")
+        toggle_param = quote(f"{player}|{date_key}")
+        check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
+        aria_checked = "true" if is_done else "false"
+        cells.append(
+            f'<div class="calendar-cell">'
+            f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
+            f'<a href="?toggle={toggle_param}&player={quote(player)}{token_suffix}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
+            f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
+            f'</div>'
+        )
+    return "".join(cells)
+
+
 def render_calendar_grid(week_start: date, today: date):
-    """Day headers + selected player's row (7 cells). Call after render_player_selector and week switcher."""
+    """Day headers + one row per player (overview) or selected player's row only. Call after render_player_selector and week switcher."""
     players = st.session_state.players
     if not players:
         return
     _ensure_selected_player()
-    player = st.session_state.selected_player
     days = get_week_days(week_start)
+    show_all = st.session_state.get("full_view_by_token")
 
-    # Header row: 7 day headers; data row: 7 checkboxes (name only in dropdown above)
-    # Wrapped in column for mobile scroll CSS
     cal_col, = st.columns([1])
     with cal_col:
-        day_headers = []
-        for d in days:
-            sub = _day_header_subtitle(d)
-            sub_html = f'<span class="calendar-header-day-subtitle">{sub}</span>' if sub else ''
-            cls = "calendar-header-cell calendar-header-day" + (" today" if d == today else "")
-            day_headers.append(
-                f'<div class="{cls}">'
-                f'<span class="calendar-header-day-main">{d.strftime("%a")} {d.day}</span>'
-                f'{sub_html}'
-                f'</div>'
+        if show_all:
+            # Overview: header row = "Player" + 7 days; then one row per player
+            day_headers = [_day_header_html(d, today) for d in days]
+            header_row = (
+                '<div class="calendar-header-row calendar-header-row-overview">'
+                '<div class="calendar-header-cell calendar-header-player">Player</div>'
+                f'<div class="calendar-header-days">{"".join(day_headers)}</div>'
+                '</div>'
             )
-        st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
-
-        # Data row: 7 checkboxes
-        cells = []
-        for d in days:
-            date_key = d.isoformat()
-            is_today = d == today
-            is_done = completed(d, player)
-            cell_cls = "cell" + (" today" if is_today else "") + (" completed" if is_done else "")
-            toggle_param = quote(f"{player}|{date_key}")
-            check_class = "cell-checkbox checked" if is_done else "cell-checkbox"
-            aria_checked = "true" if is_done else "false"
-            token_suffix = f"&token={quote(st.session_state.player_url_token)}" if st.session_state.get("player_url_token") else ""
-            cells.append(
-                f'<div class="calendar-cell">'
-                f'<div class="cell-marker {cell_cls}" aria-hidden="true"></div>'
-                f'<a href="?toggle={toggle_param}&player={quote(player)}{token_suffix}" target="_self" class="{check_class}" role="checkbox" aria-checked="{aria_checked}" title="Toggle completion">'
-                f'<span class="cell-checkbox-box">{"✓" if is_done else ""}</span></a>'
-                f'</div>'
-            )
-        st.markdown(f'<div class="calendar-row">{"".join(cells)}</div>', unsafe_allow_html=True)
+            st.markdown(header_row, unsafe_allow_html=True)
+            for player in players:
+                cells_html = _player_day_cells(player, days, today)
+                row_html = (
+                    f'<div class="calendar-row calendar-row-overview">'
+                    f'<div class="player-name">{player}</div>'
+                    f'<div class="calendar-row-days">{cells_html}</div>'
+                    '</div>'
+                )
+                st.markdown(row_html, unsafe_allow_html=True)
+        else:
+            # Single player: 7 day headers + one data row
+            day_headers = [_day_header_html(d, today) for d in days]
+            st.markdown(f'<div class="calendar-header-days">{"".join(day_headers)}</div>', unsafe_allow_html=True)
+            player = st.session_state.selected_player
+            cells_html = _player_day_cells(player, days, today)
+            st.markdown(f'<div class="calendar-row">{cells_html}</div>', unsafe_allow_html=True)
 
 
 # -----------------------------------------------------------------------------
@@ -762,6 +881,8 @@ def main():
 
     # 2. Days of the week + checkboxes (calendar)
     render_calendar_grid(week_start, today)
+
+    render_participation_stats(week_start)
 
     st.markdown("<br>", unsafe_allow_html=True)
 

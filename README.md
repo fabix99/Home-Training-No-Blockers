@@ -48,7 +48,7 @@ Edit `players.json` in the repo (or in `data/`).
 
 ## Workout of the week (Google Doc)
 
-The app shows a single **Workout of the week** button. The content is fetched automatically from a Google Doc: the section between **"Workout of the week"** and **"Exercise Pool"** is displayed. The doc URL is set in `app.py` (`WORKOUT_DOC_ID`). For the export to work without login, the doc must be shared so **Anyone with the link can view** (or **Published to web**). If the fetch fails, the app shows a message and a link to open the document.
+The app shows a single **Workout of the week** button. The content is fetched automatically from a Google Doc: the section between **"Workout of the week"** and **"Exercise Pool"** or **"End of List"** is displayed. The doc URL is set in `app.py` (`WORKOUT_DOC_ID`). For the export to work without login, the doc must be shared so **Anyone with the link can view** (or **Published to web**). If the fetch fails, the app shows a message and a link to open the document.
 
 ## Private links (confidentiality)
 

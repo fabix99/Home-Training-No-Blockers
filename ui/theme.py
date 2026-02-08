@@ -291,6 +291,66 @@ section.main div[data-testid="column"]:has(.calendar-row) .calendar-row {
     box-shadow: 0 2px 12px rgba(5, 13, 118, 0.06);
 }
 
+/* Overview: one row per player – Player column + 7 days */
+.calendar-header-row-overview {
+    display: flex !important;
+    gap: 0.25rem !important;
+    min-height: 52px !important;
+    align-items: stretch !important;
+    margin-bottom: 0.25rem !important;
+}
+.calendar-header-row-overview .calendar-header-player {
+    flex: 0 0 100px !important;
+    min-width: 100px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    padding-left: 1rem !important;
+}
+.calendar-header-row-overview .calendar-header-days {
+    flex: 1 !important;
+}
+.calendar-row-overview {
+    display: flex !important;
+    gap: 0.25rem !important;
+    min-height: 52px !important;
+    align-items: stretch !important;
+    margin-bottom: 0.25rem !important;
+}
+.calendar-row-overview .player-name {
+    flex: 0 0 100px !important;
+    min-width: 100px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+.calendar-row-overview .calendar-row-days {
+    flex: 1 !important;
+    display: flex !important;
+    gap: 0.25rem !important;
+    min-height: 52px !important;
+    align-items: stretch !important;
+}
+.calendar-row-overview .calendar-row-days .calendar-cell {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 32px;
+    padding: 1rem 0.3rem !important;
+    background: linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(248,250,255,0.9) 100%) !important;
+    border-radius: 12px;
+    border: 1px solid rgba(5, 13, 118, 0.2) !important;
+    box-shadow: 0 2px 12px rgba(5, 13, 118, 0.06) !important;
+}
+.calendar-row-overview .calendar-row-days .calendar-cell:has(.cell-marker.today) {
+    border-color: rgba(5, 13, 118, 0.4) !important;
+    background: linear-gradient(145deg, rgba(219, 231, 255, 0.5) 0%, rgba(219, 231, 255, 0.2) 100%) !important;
+}
+.calendar-row-overview .calendar-row-days .calendar-cell:has(.cell-marker.completed) {
+    border-color: rgba(6, 167, 125, 0.4) !important;
+    background: linear-gradient(145deg, rgba(6, 167, 125, 0.15) 0%, rgba(6, 167, 125, 0.05) 100%) !important;
+}
+
 /* Main area buttons */
 section.main .stButton > button {
     font-family: 'Poppins', sans-serif !important;
